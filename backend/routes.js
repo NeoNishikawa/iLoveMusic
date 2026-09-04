@@ -104,7 +104,6 @@ async function home() {
 
     const trending = (tracks?.tracks?.items || []).map(normalizeTrack).filter(Boolean);
 
-
     return {
       trending,
       artists: (artists.artists?.items || []).map(normalizeArtist).filter(Boolean),
