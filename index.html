@@ -264,6 +264,21 @@
 </div>
 </div>
 </section>
+
+<!-- ===== SECTION HASIL SEARCH (BARU) ===== -->
+<section class="w-full mb-space-8" id="search-results-section" style="display: none;">
+  <div class="flex items-center justify-between mb-space-6">
+    <div>
+      <span class="text-label-sm text-secondary uppercase tracking-wider">Search</span>
+      <h2 class="text-headline-md text-on-surface font-headline-md">Results for "<span id="search-query-text"></span>"</h2>
+    </div>
+    <button class="text-label-lg text-primary hover:underline flex items-center gap-space-1" id="clear-search-results">Clear <span class="material-symbols-outlined text-[16px]">close</span></button>
+  </div>
+  <div class="flex flex-col gap-space-4" id="search-results-list">
+    <!-- Akan diisi oleh JavaScript -->
+  </div>
+</section>
+
 <!-- Trending Songs Section -->
 <section class="w-full mb-space-8">
 <div class="flex items-center justify-between mb-space-6">
@@ -275,6 +290,7 @@
 </div>
 <div class="flex flex-col gap-space-2" id="trending-songs-list"></div>
 </section>
+
 <!-- Popular Artists Section -->
 <section class="w-full mb-space-8">
 <div class="flex items-center justify-between mb-space-6">
@@ -286,6 +302,7 @@
 </div>
 <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-space-6" id="popular-artists-grid"></div>
 </section>
+
 <!-- Featured Albums Section -->
 <section class="w-full mb-space-8">
 <div class="flex items-center justify-between mb-space-6">
@@ -297,6 +314,7 @@
 </div>
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-space-6" id="featured-albums-grid"></div>
 </section>
+
 <!-- Genre Section -->
 <section class="w-full mb-space-8">
 <div class="flex items-center justify-between mb-space-6">
@@ -307,6 +325,7 @@
 </div>
 <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-space-4" id="genres-grid"></div>
 </section>
+
 <!-- Recommended Playlists & Recently Played -->
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-space-8 mb-space-8">
 <section class="w-full">
@@ -329,6 +348,7 @@
 </section>
 </div>
 </div>
+
 <script>
       const musicData = {
         songs: [
@@ -372,10 +392,35 @@
         ]
       };
 
+      // ========== FUNGSI UPDATE FOOTER (BARU) ==========
+      function updateFooter(track) {
+        if (!track) return;
+        const nameEl = document.getElementById('footer-track-name');
+        const artistEl = document.getElementById('footer-artist-name');
+        const imgEl = document.getElementById('footer-track-img');
+        const durationEl = document.getElementById('footer-duration-total');
+        
+        if (nameEl) nameEl.textContent = track.title || track.name || 'Unknown';
+        if (artistEl) {
+          if (track.artist) artistEl.textContent = track.artist;
+          else if (track.artists) artistEl.textContent = track.artists.map(a => a.name).join(', ');
+          else artistEl.textContent = 'Unknown Artist';
+        }
+        if (imgEl) {
+          const imgUrl = track.image || (track.album && track.album.image) || (track.images && track.images[0]?.url) || '';
+          if (imgUrl) imgEl.style.backgroundImage = `url('${imgUrl}')`;
+          else imgEl.style.backgroundImage = '';
+        }
+        if (durationEl && track.durationMs) {
+          const sec = Math.floor(track.durationMs / 1000);
+          durationEl.textContent = `${Math.floor(sec/60)}:${String(sec%60).padStart(2,'0')}`;
+        }
+      }
+
       function renderTrendingSongs() {
         const container = document.getElementById('trending-songs-list');
         container.innerHTML = musicData.songs.map(song => `
-          <div class="flex items-center justify-between p-space-3 rounded-xl bg-surface-container/60 hover:bg-surface-container-high transition-colors group">
+          <div class="flex items-center justify-between p-space-3 rounded-xl bg-surface-container/60 hover:bg-surface-container-high transition-colors group" data-track-id="${song.id}">
             <div class="flex items-center gap-space-4">
               <span class="text-headline-sm text-primary font-headline-sm w-8">${song.rank}</span>
               <div class="w-12 h-12 rounded-lg bg-surface-container-highest overflow-hidden relative flex-shrink-0">
@@ -389,7 +434,7 @@
             <div class="flex items-center gap-space-4 md:gap-space-6">
               <span class="text-body-sm text-on-surface-variant hidden md:inline">${song.plays} plays</span>
               <span class="text-body-sm text-on-surface-variant">${song.duration}</span>
-              <button class="w-9 h-9 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center hover:scale-110 transition-transform">
+              <button class="w-9 h-9 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center hover:scale-110 transition-transform play-track-btn" data-track-id="${song.id}" data-preview-url="${song.previewUrl || ''}">
                 <span class="material-symbols-outlined text-[18px]">play_arrow</span>
               </button>
               <button class="text-on-surface-variant hover:text-primary transition-colors hidden sm:inline">
@@ -626,15 +671,15 @@
       });
     </script>
 </main>
-<!-- Responsive Footer Player -->
+<!-- Responsive Footer Player - DIUBAH dengan ID untuk update -->
 <footer class="fixed bottom-2 md:bottom-space-margin left-4 right-4 md:left-72 md:right-space-margin h-20 bg-surface-container/90 backdrop-blur-2xl z-40 flex items-center justify-between px-4 md:px-space-6 rounded-xl shadow-[0_4px_24px_rgba(0,0,0,0.6)] border border-primary/20">
 <div class="flex items-center gap-space-4 w-2/3 md:w-1/4">
-<div class="w-12 h-12 rounded-lg bg-surface-container-high overflow-hidden flex items-center justify-center flex-shrink-0">
-<span class="material-symbols-outlined text-primary">album</span>
+<div id="footer-track-img" class="w-12 h-12 rounded-lg bg-surface-container-high overflow-hidden flex items-center justify-center flex-shrink-0" style="background-image: url(''); background-size: cover; background-position: center;">
+  <span class="material-symbols-outlined text-primary" style="display: none;">album</span>
 </div>
 <div class="min-w-0">
-<div class="text-body-md font-medium text-on-surface truncate">Subterranean Echoes</div>
-<div class="text-body-sm text-on-surface-variant truncate">Kavinsky &amp; The Void</div>
+<div id="footer-track-name" class="text-body-md font-medium text-on-surface truncate">Subterranean Echoes</div>
+<div id="footer-artist-name" class="text-body-sm text-on-surface-variant truncate">Kavinsky &amp; The Void</div>
 </div>
 <button class="text-on-surface-variant hover:text-primary transition-colors ml-space-2 hidden sm:inline">
 <span class="material-symbols-outlined text-[20px]">favorite</span>
@@ -649,9 +694,9 @@
 <button class="text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[18px]">repeat</span></button>
 </div>
 <div class="flex items-center gap-space-3 w-full">
-<span class="text-body-sm text-on-surface-variant">1:24</span>
+<span class="text-body-sm text-on-surface-variant" id="footer-duration-current">1:24</span>
 <div class="flex-1 h-1 bg-surface-container-high rounded-full overflow-hidden relative cursor-pointer"><div class="absolute left-0 top-0 bottom-0 w-1/3 bg-primary rounded-full"></div></div>
-<span class="text-body-sm text-on-surface-variant">3:45</span>
+<span class="text-body-sm text-on-surface-variant" id="footer-duration-total">3:45</span>
 </div>
 </div>
 <div class="flex items-center gap-space-4 w-1/3 md:w-1/4 justify-end">
@@ -725,7 +770,30 @@
           spotifyPlayerReady = new Promise((resolve, reject) => {
             if (!window.Spotify) return reject(new Error('Spotify Web Playback SDK is not ready'));
             spotifyPlayer = new Spotify.Player({ name: 'Aura Web Player', volume: 0.8, getOAuthToken: async callback => callback(await ensureSpotifyToken()) });
-            spotifyPlayer.addListener('ready', ({ device_id }) => { spotifyDeviceId = device_id; resolve(spotifyPlayer); });
+            
+            spotifyPlayer.addListener('ready', ({ device_id }) => { 
+              spotifyDeviceId = device_id; 
+              resolve(spotifyPlayer); 
+            });
+            
+            // ========== TAMBAHKAN LISTENER UNTUK UPDATE FOOTER ==========
+            spotifyPlayer.addListener('player_state_changed', state => {
+              if (state && state.track_window && state.track_window.current_track) {
+                const t = state.track_window.current_track;
+                // Panggil fungsi updateFooter yang ada di global scope
+                if (window.updateFooter) {
+                  window.updateFooter({
+                    id: t.id,
+                    title: t.name,
+                    artist: t.artists.map(a => a.name).join(', '),
+                    artists: t.artists,
+                    image: t.album.images[0]?.url || '',
+                    durationMs: t.duration_ms
+                  });
+                }
+              }
+            });
+
             spotifyPlayer.addListener('initialization_error', ({ message }) => reject(new Error(message)));
             spotifyPlayer.addListener('authentication_error', ({ message }) => reject(new Error(message)));
             spotifyPlayer.addListener('account_error', ({ message }) => reject(new Error(message)));
@@ -789,7 +857,14 @@
           stream.addEventListener('home', event => {
             try {
               const payload = JSON.parse(event.data);
-              if (payload.success) applyHomeData(payload.data);
+              if (payload.success) {
+                applyHomeData(payload.data);
+              } else {
+                console.warn('[AURA] Server unable to load fresh data:', payload.error?.message);
+                // Tampilkan pesan di UI (opsional)
+                const statusEl = document.getElementById('data-status');
+                if (statusEl) statusEl.textContent = '⚠️ Using cached data';
+              }
             } catch (error) {
               console.warn('[AURA] Invalid home stream payload', error.message);
             }
@@ -805,24 +880,53 @@
           window.auraHomeStream = stream;
         }
 
+        // ========== RENDER SEARCH RESULTS (DIPERBAIKI UNTUK SECTION BARU) ==========
         function renderSearchResults(data) {
-          const container = document.getElementById('search-results-container');
+          const container = document.getElementById('search-results-container'); // modal
+          const sectionContainer = document.getElementById('search-results-list'); // section utama
+          const section = document.getElementById('search-results-section');
+          const queryText = document.getElementById('search-query-text');
+          
           const groups = [
-            ['Tracks', data.tracks || [], item => `${item.title} — ${(item.artists || []).map(a => a.name).join(', ')}`, item => item.album?.image],
+            ['Tracks', data.tracks || [], item => `${item.title} — ${(item.artists || []).map(a => a.name).join(', ')}`, item => image(item)],
             ['Artists', data.artists || [], item => item.name, item => image(item)],
             ['Albums', data.albums || [], item => item.title || item.name, item => image(item)],
             ['Playlists', data.playlists || [], item => item.title || item.name, item => image(item)]
           ];
           const results = groups.flatMap(([label, items, title, imageOf]) => items.slice(0, 5).map(item => ({ label, item, title: title(item), image: imageOf(item) })));
+          
           if (!results.length) {
             container.innerHTML = '<div class="text-body-sm text-on-surface-variant px-space-2 py-space-1">No music found.</div>';
+            section.style.display = 'none';
             return;
           }
+
+          const query = document.getElementById('modal-search-input').value.trim();
+          queryText.textContent = query;
+          section.style.display = 'block';
+
+          // Modal (sederhana)
           container.innerHTML = results.map(result => `
             <button type="button" class="flex items-center gap-space-3 p-space-2 rounded-lg bg-surface-container-high/50 hover:bg-surface-container-high text-left transition-colors" data-result-type="${result.label.toLowerCase()}" data-result-id="${escapeHtml(result.item.id)}" data-preview-url="${escapeHtml(result.item.previewUrl || '')}" data-spotify-url="${escapeHtml(result.item.spotifyUrl || '')}">
               <div class="w-10 h-10 rounded-lg bg-surface-container-highest bg-cover bg-center flex-shrink-0" style="background-image:url('${escapeHtml(result.image || '')}')"></div>
               <span class="min-w-0"><span class="block text-body-md text-on-surface truncate">${escapeHtml(result.title)}</span><span class="block text-body-sm text-on-surface-variant">${result.label}</span></span>
             </button>`).join('');
+
+          // Section Utama (lebih lengkap dengan tombol play)
+          sectionContainer.innerHTML = results.map(result => `
+            <div class="flex items-center justify-between p-space-3 rounded-xl bg-surface-container/60 hover:bg-surface-container transition-colors group" data-result-type="${result.label.toLowerCase()}" data-result-id="${escapeHtml(result.item.id)}" data-preview-url="${escapeHtml(result.item.previewUrl || '')}" data-spotify-url="${escapeHtml(result.item.spotifyUrl || '')}">
+              <div class="flex items-center gap-space-4">
+                <div class="w-12 h-12 rounded-lg bg-surface-container-highest bg-cover bg-center flex-shrink-0" style="background-image:url('${escapeHtml(result.image || '')}')"></div>
+                <div>
+                  <div class="text-body-lg font-medium text-on-surface group-hover:text-primary transition-colors">${escapeHtml(result.title)}</div>
+                  <div class="text-body-sm text-on-surface-variant">${result.label}</div>
+                </div>
+              </div>
+              <button class="w-9 h-9 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center hover:scale-110 transition-transform play-search-result" data-result-id="${escapeHtml(result.item.id)}" data-preview-url="${escapeHtml(result.item.previewUrl || '')}" data-title="${escapeHtml(result.title)}" data-artist="${escapeHtml(result.item.artist || '')}">
+                <span class="material-symbols-outlined text-[18px]">play_arrow</span>
+              </button>
+            </div>
+          `).join('');
         }
 
         function initSpotifySearch() {
@@ -832,21 +936,32 @@
           input.addEventListener('input', () => {
             clearTimeout(timer);
             const query = input.value.trim();
-            if (!query) return;
+            if (!query) {
+              document.getElementById('search-results-section').style.display = 'none';
+              return;
+            }
             timer = setTimeout(async () => {
               try { renderSearchResults(await api(`/api/search?q=${encodeURIComponent(query)}`)); }
-              catch (error) { document.getElementById('search-results-container').innerHTML = `<div class="text-body-sm text-on-surface-variant px-space-2 py-space-1">${escapeHtml(error.message)}</div>`; }
+              catch (error) { 
+                document.getElementById('search-results-container').innerHTML = `<div class="text-body-sm text-on-surface-variant px-space-2 py-space-1">${escapeHtml(error.message)}</div>`;
+                document.getElementById('search-results-section').style.display = 'none';
+              }
             }, 350);
           });
         }
 
+        // ========== INIT PREVIEW PLAYER + FOOTER UPDATE ==========
         function initPreviewPlayer() {
           const audio = document.createElement('audio');
           audio.preload = 'none';
           let currentTrack = null;
-          const playTrack = track => {
+          
+          const playTrack = (track) => {
             if (!track) return;
             currentTrack = track;
+            // Update footer setiap kali track diputar
+            if (window.updateFooter) window.updateFooter(track);
+            
             if (track.previewUrl) {
               audio.src = track.previewUrl;
               audio.play().catch(() => {});
@@ -854,51 +969,111 @@
             }
             playSpotifyTrack(track.id).catch(error => {
               console.warn('[AURA] Spotify playback unavailable', error.message);
-              if (!spotifyToken()) startSpotifyLogin();
+              // Coba login jika token tidak ada
+              ensureSpotifyToken().catch(() => startSpotifyLogin());
             });
           };
-          document.addEventListener('click', event => {
-            const button = event.target.closest('button');
-            if (!button) return;
-            const resultRow = button.closest('[data-result-type]');
-            if (resultRow) {
-              const previewUrl = resultRow.dataset.previewUrl || '';
-              const spotifyUrl = resultRow.dataset.spotifyUrl || '';
-              if (resultRow.dataset.resultType === 'tracks') {
-                playTrack({ id: resultRow.dataset.resultId, previewUrl, spotifyUrl });
-              } else if (spotifyUrl) {
-                window.open(spotifyUrl, '_blank', 'noopener,noreferrer');
-              }
-              return;
-            }
-            const row = button.closest('[data-track-id]');
-            if (row && button.querySelector('.material-symbols-outlined')?.textContent.trim() === 'play_arrow') {
-              const track = musicData.songs.find(item => String(item.id) === row.dataset.trackId);
-              playTrack(track);
+          
+          window.playTrack = playTrack; // ekspos ke global
+          window.auraAudio = audio;
+          window.auraCurrentTrack = () => currentTrack;
+          
+          // Event listener untuk audio preview agar update durasi dan progress
+          audio.addEventListener('timeupdate', () => {
+            const currentEl = document.getElementById('footer-duration-current');
+            if (currentEl && audio.duration) {
+              const sec = Math.floor(audio.currentTime);
+              currentEl.textContent = `${Math.floor(sec/60)}:${String(sec%60).padStart(2,'0')}`;
             }
           });
-          window.auraAudio = audio;
-          window.auraPlayTrack = playTrack;
-          window.auraCurrentTrack = () => currentTrack;
         }
 
-        const originalRenderTrendingSongs = renderTrendingSongs;
-        renderTrendingSongs = function() {
-          originalRenderTrendingSongs();
-          [...document.querySelectorAll('#trending-songs-list > div')].forEach((row, index) => {
-            const track = musicData.songs[index];
-            if (track) row.dataset.trackId = track.id;
-          });
-        };
+        // ========== EVENT DELEGATION UNTUK TOMBOL PLAY ==========
+        document.addEventListener('click', (e) => {
+          // 1. Tombol play di trending songs
+          const btn = e.target.closest('.play-track-btn');
+          if (btn) {
+            e.preventDefault();
+            const id = btn.dataset.trackId;
+            const previewUrl = btn.dataset.previewUrl || '';
+            const track = musicData.songs.find(t => String(t.id) === id);
+            if (track) {
+              const playable = { ...track, previewUrl: previewUrl || track.previewUrl };
+              if (window.playTrack) window.playTrack(playable);
+            }
+            return;
+          }
 
-        document.addEventListener('DOMContentLoaded', async () => {
+          // 2. Tombol play di hasil pencarian (section utama)
+          const searchBtn = e.target.closest('.play-search-result');
+          if (searchBtn) {
+            e.preventDefault();
+            const id = searchBtn.dataset.resultId;
+            const previewUrl = searchBtn.dataset.previewUrl || '';
+            const title = searchBtn.dataset.title || 'Unknown';
+            const artist = searchBtn.dataset.artist || 'Unknown Artist';
+            const track = { id, title, artist, previewUrl, durationMs: 0 };
+            if (window.playTrack) window.playTrack(track);
+            return;
+          }
+
+          // 3. Klik di row hasil pencarian (modal) - tetap support
+          const resultRow = e.target.closest('[data-result-type]');
+          if (resultRow && !e.target.closest('button')) {
+            const previewUrl = resultRow.dataset.previewUrl || '';
+            const spotifyUrl = resultRow.dataset.spotifyUrl || '';
+            if (resultRow.dataset.resultType === 'tracks') {
+              const id = resultRow.dataset.resultId;
+              const title = resultRow.querySelector('.block')?.textContent || 'Unknown';
+              const track = { id, title, previewUrl, artist: 'Unknown' };
+              if (window.playTrack) window.playTrack(track);
+            } else if (spotifyUrl) {
+              window.open(spotifyUrl, '_blank', 'noopener,noreferrer');
+            }
+          }
+        });
+
+        // ========== CLEAR SEARCH ==========
+        document.addEventListener('DOMContentLoaded', () => {
+          const clearBtn = document.getElementById('clear-search-results');
+          if (clearBtn) {
+            clearBtn.addEventListener('click', () => {
+              document.getElementById('search-results-section').style.display = 'none';
+              document.getElementById('modal-search-input').value = '';
+              document.getElementById('search-results-container').innerHTML = `
+                <div class="text-label-sm text-on-surface-variant uppercase tracking-wider px-space-2 py-space-1">Quick Suggestions</div>
+                <div class="flex flex-wrap gap-space-2 p-space-2">
+                  <span class="px-space-3 py-space-1 bg-surface-container-high rounded-full text-body-sm text-on-surface cursor-pointer hover:bg-primary-container hover:text-on-primary-container transition-colors">Cyberpunk Bass</span>
+                  <span class="px-space-3 py-space-1 bg-surface-container-high rounded-full text-body-sm text-on-surface cursor-pointer hover:bg-primary-container hover:text-on-primary-container transition-colors">Midnight Synthwave</span>
+                  <span class="px-space-3 py-space-1 bg-surface-container-high rounded-full text-body-sm text-on-surface cursor-pointer hover:bg-primary-container hover:text-on-primary-container transition-colors">Kavinsky</span>
+                  <span class="px-space-3 py-space-1 bg-surface-container-high rounded-full text-body-sm text-on-surface cursor-pointer hover:bg-primary-container hover:text-on-primary-container transition-colors">Lo-Fi Rain</span>
+                </div>
+              `;
+            });
+          }
+
+          // Login Spotify
           const loginButton = document.getElementById('spotify-login');
-          if (loginButton) loginButton.addEventListener('click', async event => { event.preventDefault(); if (await spotifyTokenAvailable()) initSpotifyPlayer().catch(error => console.warn('[AURA] Spotify player unavailable', error.message)); else startSpotifyLogin(); });
-          try { await handleSpotifyCallback(); } catch (error) { console.warn('[AURA] Spotify login unavailable', error.message); }
+          if (loginButton) {
+            loginButton.addEventListener('click', async (event) => {
+              event.preventDefault(); 
+              if (await spotifyTokenAvailable()) {
+                initSpotifyPlayer().catch(error => console.warn('[AURA] Spotify player unavailable', error.message));
+              } else {
+                startSpotifyLogin();
+              }
+            });
+          }
+
+          handleSpotifyCallback().catch(error => console.warn('[AURA] Spotify login unavailable', error.message));
           initSpotifySearch();
           initPreviewPlayer();
           loadHome();
         });
+
+        // Expose updateFooter ke global agar bisa dipanggil dari mana saja
+        window.updateFooter = updateFooter;
+
       })();
     </script>
 </body></html>
