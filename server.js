@@ -19,6 +19,7 @@ function loadEnv() {
 
 loadEnv();
 const port = Number(process.env.PORT || 3000);
+const host = process.env.HOST || '0.0.0.0';
 const publicRoot = __dirname;
 const mimeTypes = {
   '.html': 'text/html; charset=utf-8',
@@ -59,6 +60,12 @@ const server = http.createServer(async (req, res) => {
     return sendError(res, 405, 'METHOD_NOT_ALLOWED', 'Only GET requests are supported');
   }
 
+  if (requestUrl.pathname === '/health') {
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+    res.end(JSON.stringify({ status: 'ok', service: 'ilovemusic' }));
+    return;
+  }
+
   if (requestUrl.pathname.startsWith('/api/')) {
     try {
       const handled = await routeRequest(req, res, requestUrl.pathname, requestUrl.searchParams);
@@ -74,4 +81,4 @@ const server = http.createServer(async (req, res) => {
   serveStatic(res, requestUrl.pathname);
 });
 
-server.listen(port, () => console.log(`[SERVER] Aura listening on http://localhost:${port}`));
+server.listen(port, host, () => console.log(`[SERVER] Aura listening on http://${host}:${port}`));
