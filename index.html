@@ -757,7 +757,7 @@
             return;
           }
           container.innerHTML = results.map(result => `
-            <button type="button" class="flex items-center gap-space-3 p-space-2 rounded-lg bg-surface-container-high/50 hover:bg-surface-container-high text-left transition-colors" data-result-type="${result.label.toLowerCase()}" data-result-id="${escapeHtml(result.item.id)}">
+            <button type="button" class="flex items-center gap-space-3 p-space-2 rounded-lg bg-surface-container-high/50 hover:bg-surface-container-high text-left transition-colors" data-result-type="${result.label.toLowerCase()}" data-result-id="${escapeHtml(result.item.id)}" data-preview-url="${escapeHtml(result.item.previewUrl || '')}" data-spotify-url="${escapeHtml(result.item.spotifyUrl || '')}">
               <div class="w-10 h-10 rounded-lg bg-surface-container-highest bg-cover bg-center flex-shrink-0" style="background-image:url('${escapeHtml(result.image || '')}')"></div>
               <span class="min-w-0"><span class="block text-body-md text-on-surface truncate">${escapeHtml(result.title)}</span><span class="block text-body-sm text-on-surface-variant">${result.label}</span></span>
             </button>`).join('');
@@ -782,16 +782,38 @@
           const audio = document.createElement('audio');
           audio.preload = 'none';
           let currentTrack = null;
+          const playTrack = track => {
+            if (!track) return;
+            currentTrack = track;
+            if (track.previewUrl) {
+              audio.src = track.previewUrl;
+              audio.play().catch(() => {});
+              return;
+            }
+            if (track.spotifyUrl) window.open(track.spotifyUrl, '_blank', 'noopener,noreferrer');
+          };
           document.addEventListener('click', event => {
             const button = event.target.closest('button');
             if (!button) return;
+            const resultRow = button.closest('[data-result-type]');
+            if (resultRow) {
+              const previewUrl = resultRow.dataset.previewUrl || '';
+              const spotifyUrl = resultRow.dataset.spotifyUrl || '';
+              if (resultRow.dataset.resultType === 'tracks') {
+                playTrack({ id: resultRow.dataset.resultId, previewUrl, spotifyUrl });
+              } else if (spotifyUrl) {
+                window.open(spotifyUrl, '_blank', 'noopener,noreferrer');
+              }
+              return;
+            }
             const row = button.closest('[data-track-id]');
             if (row && button.querySelector('.material-symbols-outlined')?.textContent.trim() === 'play_arrow') {
               const track = musicData.songs.find(item => String(item.id) === row.dataset.trackId);
-              if (track?.previewUrl) { currentTrack = track; audio.src = track.previewUrl; audio.play().catch(() => {}); }
+              playTrack(track);
             }
           });
           window.auraAudio = audio;
+          window.auraPlayTrack = playTrack;
           window.auraCurrentTrack = () => currentTrack;
         }
 
