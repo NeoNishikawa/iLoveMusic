@@ -50,12 +50,20 @@ async function handleSse(req, res) {
   res.write('retry: 5000\n\n');
   events.addClient(res);
   events.writeEvent(res, 'connected', { timestamp: Date.now() });
+
   try {
     const data = await getHomeData();
     events.writeEvent(res, 'home', { success: true, data });
   } catch (error) {
-    events.writeEvent(res, 'server-error', { success: false, error: { code: error.code || 'SPOTIFY_ERROR', message: error.message } });
+    console.error(`[SSE ERROR] ${error.code || error.message}`);
+    // Kirim event dengan success: false agar frontend tahu data tidak bisa dimuat
+    events.writeEvent(res, 'home', { 
+      success: false, 
+      error: { code: error.code || 'SPOTIFY_ERROR', message: error.message },
+      data: null 
+    });
   }
+
   req.on('close', () => events.removeClient(res));
 }
 
@@ -128,7 +136,8 @@ const server = http.createServer(async (req, res) => {
   serveStatic(res, requestUrl.pathname);
 });
 
-const refreshMs = Math.max(60_000, Number(process.env.SSE_REFRESH_MS || 300_000));
+// Refresh interval dikurangi menjadi 2 menit agar lebih responsif
+const refreshMs = Math.max(60_000, Number(process.env.SSE_REFRESH_MS || 120_000));
 const refreshTimer = setInterval(async () => {
   if (events.count() === 0) return;
   try {
@@ -136,7 +145,11 @@ const refreshTimer = setInterval(async () => {
     events.broadcast('home', { success: true, data });
   } catch (error) {
     console.error(`[ERROR] SSE refresh: ${error.code || error.message}`);
-    events.broadcast('server-error', { success: false, error: { code: error.code || 'SPOTIFY_ERROR', message: error.message } });
+    events.broadcast('home', { 
+      success: false, 
+      error: { code: error.code || 'SPOTIFY_ERROR', message: error.message },
+      data: null 
+    });
   }
 }, refreshMs);
 const heartbeatTimer = setInterval(() => events.heartbeat(), 25_000);
