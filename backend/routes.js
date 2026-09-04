@@ -9,6 +9,7 @@ const artistsOf = artists => (artists || []).map(artist => ({
 }));
 
 function normalizeTrack(track) {
+  if (!track) return null;
   return {
     id: track.id,
     title: track.name,
@@ -29,6 +30,7 @@ function normalizeTrack(track) {
 }
 
 function normalizeArtist(artist) {
+  if (!artist) return null;
   return {
     id: artist.id,
     name: artist.name,
@@ -42,6 +44,7 @@ function normalizeArtist(artist) {
 }
 
 function normalizeAlbum(album) {
+  if (!album) return null;
   return {
     id: album.id,
     title: album.name,
@@ -52,12 +55,13 @@ function normalizeAlbum(album) {
     artists: artistsOf(album.artists),
     releaseDate: album.release_date || null,
     totalTracks: album.total_tracks || 0,
-    tracks: (album.tracks?.items || []).map(normalizeTrack),
+    tracks: (album.tracks?.items || []).map(normalizeTrack).filter(Boolean),
     spotifyUrl: album.external_urls?.spotify || null
   };
 }
 
 function normalizePlaylist(playlist) {
+  if (!playlist) return null;
   return {
     id: playlist.id,
     title: playlist.name,
@@ -68,7 +72,7 @@ function normalizePlaylist(playlist) {
     owner: playlist.owner?.display_name || playlist.owner?.id || null,
     totalTracks: playlist.tracks?.total || 0,
     spotifyUrl: playlist.external_urls?.spotify || null,
-    tracks: (playlist.tracks?.items || []).map(item => item.track).filter(Boolean).map(normalizeTrack)
+    tracks: (playlist.tracks?.items || []).map(item => item.track).filter(Boolean).map(normalizeTrack).filter(Boolean)
   };
 }
 
@@ -98,14 +102,14 @@ async function home() {
       spotifyRequest('/search?q=genre%3Aelectronic&type=playlist&limit=3')
     ]);
 
-    const trending = (tracks?.tracks?.items || []).map(normalizeTrack);
+    const trending = (tracks?.tracks?.items || []).map(normalizeTrack).filter(Boolean);
 
 
     return {
       trending,
-      artists: (artists.artists?.items || []).map(normalizeArtist),
-      albums: (albums.albums?.items || []).map(normalizeAlbum),
-      playlists: (playlists.playlists?.items || []).map(normalizePlaylist),
+      artists: (artists.artists?.items || []).map(normalizeArtist).filter(Boolean),
+      albums: (albums.albums?.items || []).map(normalizeAlbum).filter(Boolean),
+      playlists: (playlists.playlists?.items || []).map(normalizePlaylist).filter(Boolean),
       genres: []
     };
   }, 120000).finally(() => { homeRefreshPromise = null; });
@@ -116,10 +120,10 @@ async function search(query, types = 'track,artist,album,playlist') {
   return cached(`search:${params.toString()}`, async () => {
     const data = await spotifyRequest(`/search?${params}`);
     return {
-      tracks: (data.tracks?.items || []).map(normalizeTrack),
-      artists: (data.artists?.items || []).map(normalizeArtist),
-      albums: (data.albums?.items || []).map(normalizeAlbum),
-      playlists: (data.playlists?.items || []).map(normalizePlaylist)
+      tracks: (data.tracks?.items || []).map(normalizeTrack).filter(Boolean),
+      artists: (data.artists?.items || []).map(normalizeArtist).filter(Boolean),
+      albums: (data.albums?.items || []).map(normalizeAlbum).filter(Boolean),
+      playlists: (data.playlists?.items || []).map(normalizePlaylist).filter(Boolean)
     };
   }, 30000);
 }
@@ -133,11 +137,11 @@ async function routeRequest(req, res, pathname, query) {
   }
   if (pathname === '/api/recommendations') {
     const data = await spotifyRequest('/browse/featured-playlists?limit=10');
-    return responseData(res, (data.playlists?.items || []).map(normalizePlaylist));
+    return responseData(res, (data.playlists?.items || []).map(normalizePlaylist).filter(Boolean));
   }
   if (pathname === '/api/new-releases') {
     const data = await spotifyRequest('/search?q=year%3A2025&type=album&limit=20');
-    return responseData(res, (data.albums?.items || []).map(normalizeAlbum));
+    return responseData(res, (data.albums?.items || []).map(normalizeAlbum).filter(Boolean));
   }
   if (pathname === '/api/featured') return responseData(res, await home());
 
@@ -152,7 +156,7 @@ async function routeRequest(req, res, pathname, query) {
     const raw = await spotifyRequest(endpoint);
     if (resource === 'tracks') return normalizeTrack(raw);
     if (resource === 'albums') return normalizeAlbum(raw);
-    if (resource === 'artists' && suffix) return (raw.tracks || []).map(normalizeTrack);
+    if (resource === 'artists' && suffix) return (raw.tracks || []).map(normalizeTrack).filter(Boolean);
     if (resource === 'artists') return normalizeArtist(raw);
     return normalizePlaylist(raw);
   }, 300000);
