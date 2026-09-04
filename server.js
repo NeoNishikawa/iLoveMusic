@@ -103,6 +103,16 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (requestUrl.pathname === '/' && (requestUrl.searchParams.has('code') || requestUrl.searchParams.has('error'))) {
+    try {
+      await userAuth.completeLogin(req, res, requestUrl.searchParams);
+    } catch (error) {
+      console.error(`[ERROR] ${error.code || 'SPOTIFY_USER_AUTH_ERROR'}: ${error.message}`);
+      if (!res.writableEnded) sendError(res, error.status || 502, error.code || 'SPOTIFY_USER_AUTH_ERROR', error.message);
+    }
+    return;
+  }
+
   if (requestUrl.pathname.startsWith('/api/')) {
     try {
       const handled = await routeRequest(req, res, requestUrl.pathname, requestUrl.searchParams);
