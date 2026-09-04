@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { routeRequest, getHomeData } = require('./backend/routes');
 const events = require('./backend/events');
+const userAuth = require('./backend/userAuth');
 
 function loadEnv() {
   const envPath = path.join(__dirname, '.env');
@@ -78,6 +79,17 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method !== 'GET' && requestUrl.pathname.startsWith('/api/')) {
     return sendError(res, 405, 'METHOD_NOT_ALLOWED', 'Only GET requests are supported');
+  }
+
+  if (requestUrl.pathname === '/api/spotify/login' || requestUrl.pathname === '/api/spotify/callback' || requestUrl.pathname === '/api/spotify/token') {
+    try {
+      const handled = await userAuth.handle(req, res, requestUrl.pathname, requestUrl.searchParams);
+      if (handled === false && !res.writableEnded) sendError(res, 404, 'NOT_FOUND', 'Auth route not found');
+    } catch (error) {
+      console.error(`[ERROR] ${error.code || 'SPOTIFY_USER_AUTH_ERROR'}: ${error.message}`);
+      if (!res.writableEnded) sendError(res, error.status || 502, error.code || 'SPOTIFY_USER_AUTH_ERROR', error.message);
+    }
+    return;
   }
 
   if (requestUrl.pathname === '/api/events') {
