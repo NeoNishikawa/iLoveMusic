@@ -695,9 +695,10 @@
         let spotifyPlayerReady = null;
 
         const randomString = length => {
+          const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
           const values = new Uint8Array(length);
           crypto.getRandomValues(values);
-          return Array.from(values, value => String.fromCharCode(33 + (value % 94))).join('');
+          return Array.from(values, value => alphabet[value % alphabet.length]).join('');
         };
         const base64Url = buffer => btoa(String.fromCharCode(...new Uint8Array(buffer))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
         const spotifyToken = () => sessionStorage.getItem('spotify_access_token');
