@@ -671,4 +671,127 @@
 </div>
 </footer>
 </div>
+<script>
+      (() => {
+        const api = async (path, options = {}) => {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), options.timeout || 10000);
+          try {
+            const response = await fetch(path, { signal: controller.signal });
+            const payload = await response.json();
+            if (!response.ok || !payload.success) throw new Error(payload.error?.message || 'Unable to load music data');
+            return payload.data;
+          } finally {
+            clearTimeout(timer);
+          }
+        };
+
+        const image = item => item?.image || item?.images?.[0]?.url || '';
+        const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
+        const formatDuration = ms => {
+          const seconds = Math.floor((Number(ms) || 0) / 1000);
+          return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+        };
+
+        function applyHomeData(data) {
+          if (!data) return;
+          if (Array.isArray(data.trending) && data.trending.length) {
+            musicData.songs = data.trending.map((track, index) => ({
+              id: track.id, rank: String(index + 1).padStart(2, '0'), title: track.title,
+              artist: track.artist || (track.artists || []).map(a => a.name).join(', '),
+              plays: track.popularity == null ? '' : `${track.popularity}% popularity`,
+              duration: formatDuration(track.durationMs || track.duration), trend: 'same', image: image(track), previewUrl: track.previewUrl
+            }));
+          }
+          if (Array.isArray(data.artists) && data.artists.length) {
+            musicData.artists = data.artists.map(artist => ({ id: artist.id, name: artist.name, role: (artist.genres || [])[0] || 'Spotify Artist', image: image(artist) }));
+          }
+          if (Array.isArray(data.albums) && data.albums.length) {
+            musicData.albums = data.albums.map(album => ({ id: album.id, title: album.title || album.name, artist: album.artist || '', tracks: `${album.totalTracks || 0} Tracks`, image: image(album) }));
+          }
+          if (Array.isArray(data.playlists) && data.playlists.length) {
+            musicData.playlists = data.playlists.map(playlist => ({ id: playlist.id, title: playlist.title || playlist.name, subtitle: `${playlist.totalTracks || 0} tracks`, image: image(playlist) }));
+          }
+          renderTrendingSongs();
+          renderArtists();
+          renderAlbums();
+          renderPlaylists();
+        }
+
+        async function loadHome() {
+          try {
+            applyHomeData(await api('/api/home'));
+          } catch (error) {
+            console.warn('[AURA] Spotify home unavailable; retaining existing content', error.message);
+          }
+        }
+
+        function renderSearchResults(data) {
+          const container = document.getElementById('search-results-container');
+          const groups = [
+            ['Tracks', data.tracks || [], item => `${item.title} — ${(item.artists || []).map(a => a.name).join(', ')}`, item => item.album?.image],
+            ['Artists', data.artists || [], item => item.name, item => image(item)],
+            ['Albums', data.albums || [], item => item.title || item.name, item => image(item)],
+            ['Playlists', data.playlists || [], item => item.title || item.name, item => image(item)]
+          ];
+          const results = groups.flatMap(([label, items, title, imageOf]) => items.slice(0, 5).map(item => ({ label, item, title: title(item), image: imageOf(item) })));
+          if (!results.length) {
+            container.innerHTML = '<div class="text-body-sm text-on-surface-variant px-space-2 py-space-1">No music found.</div>';
+            return;
+          }
+          container.innerHTML = results.map(result => `
+            <button type="button" class="flex items-center gap-space-3 p-space-2 rounded-lg bg-surface-container-high/50 hover:bg-surface-container-high text-left transition-colors" data-result-type="${result.label.toLowerCase()}" data-result-id="${escapeHtml(result.item.id)}">
+              <div class="w-10 h-10 rounded-lg bg-surface-container-highest bg-cover bg-center flex-shrink-0" style="background-image:url('${escapeHtml(result.image || '')}')"></div>
+              <span class="min-w-0"><span class="block text-body-md text-on-surface truncate">${escapeHtml(result.title)}</span><span class="block text-body-sm text-on-surface-variant">${result.label}</span></span>
+            </button>`).join('');
+        }
+
+        function initSpotifySearch() {
+          const input = document.getElementById('modal-search-input');
+          if (!input) return;
+          let timer;
+          input.addEventListener('input', () => {
+            clearTimeout(timer);
+            const query = input.value.trim();
+            if (!query) return;
+            timer = setTimeout(async () => {
+              try { renderSearchResults(await api(`/api/search?q=${encodeURIComponent(query)}`)); }
+              catch (error) { document.getElementById('search-results-container').innerHTML = `<div class="text-body-sm text-on-surface-variant px-space-2 py-space-1">${escapeHtml(error.message)}</div>`; }
+            }, 350);
+          });
+        }
+
+        function initPreviewPlayer() {
+          const audio = document.createElement('audio');
+          audio.preload = 'none';
+          let currentTrack = null;
+          document.addEventListener('click', event => {
+            const button = event.target.closest('button');
+            if (!button) return;
+            const row = button.closest('[data-track-id]');
+            if (row && button.querySelector('.material-symbols-outlined')?.textContent.trim() === 'play_arrow') {
+              const track = musicData.songs.find(item => String(item.id) === row.dataset.trackId);
+              if (track?.previewUrl) { currentTrack = track; audio.src = track.previewUrl; audio.play().catch(() => {}); }
+            }
+          });
+          window.auraAudio = audio;
+          window.auraCurrentTrack = () => currentTrack;
+        }
+
+        const originalRenderTrendingSongs = renderTrendingSongs;
+        renderTrendingSongs = function() {
+          originalRenderTrendingSongs();
+          [...document.querySelectorAll('#trending-songs-list > div')].forEach((row, index) => {
+            const track = musicData.songs[index];
+            if (track) row.dataset.trackId = track.id;
+          });
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+          initSpotifySearch();
+          initPreviewPlayer();
+          loadHome();
+        });
+      })();
+    </script>
 </body></html>
