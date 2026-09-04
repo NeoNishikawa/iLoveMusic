@@ -1,7 +1,8 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { routeRequest } = require('./backend/routes');
+const { routeRequest, getHomeData } = require('./backend/routes');
+const events = require('./backend/events');
 
 function loadEnv() {
   const envPath = path.join(__dirname, '.env');
@@ -38,6 +39,25 @@ function sendError(res, status, code, message) {
   res.end(JSON.stringify({ success: false, error: { code, message } }));
 }
 
+async function handleSse(req, res) {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream; charset=utf-8',
+    'Cache-Control': 'no-cache, no-transform',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no'
+  });
+  res.write('retry: 5000\n\n');
+  events.addClient(res);
+  events.writeEvent(res, 'connected', { timestamp: Date.now() });
+  try {
+    const data = await getHomeData();
+    events.writeEvent(res, 'home', { success: true, data });
+  } catch (error) {
+    events.writeEvent(res, 'server-error', { success: false, error: { code: error.code || 'SPOTIFY_ERROR', message: error.message } });
+  }
+  req.on('close', () => events.removeClient(res));
+}
+
 function serveStatic(res, pathname) {
   const requested = pathname === '/' ? '/index.html' : pathname;
   const safePath = path.normalize(requested).replace(/^([.][.][/\\])+/, '');
@@ -60,6 +80,11 @@ const server = http.createServer(async (req, res) => {
     return sendError(res, 405, 'METHOD_NOT_ALLOWED', 'Only GET requests are supported');
   }
 
+  if (requestUrl.pathname === '/api/events') {
+    if (req.method !== 'GET') return sendError(res, 405, 'METHOD_NOT_ALLOWED', 'Only GET requests are supported');
+    return handleSse(req, res);
+  }
+
   if (requestUrl.pathname === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
     res.end(JSON.stringify({ status: 'ok', service: 'ilovemusic' }));
@@ -80,5 +105,20 @@ const server = http.createServer(async (req, res) => {
 
   serveStatic(res, requestUrl.pathname);
 });
+
+const refreshMs = Math.max(60_000, Number(process.env.SSE_REFRESH_MS || 300_000));
+const refreshTimer = setInterval(async () => {
+  if (events.count() === 0) return;
+  try {
+    const data = await getHomeData();
+    events.broadcast('home', { success: true, data });
+  } catch (error) {
+    console.error(`[ERROR] SSE refresh: ${error.code || error.message}`);
+    events.broadcast('server-error', { success: false, error: { code: error.code || 'SPOTIFY_ERROR', message: error.message } });
+  }
+}, refreshMs);
+const heartbeatTimer = setInterval(() => events.heartbeat(), 25_000);
+refreshTimer.unref();
+heartbeatTimer.unref();
 
 server.listen(port, host, () => console.log(`[SERVER] Aura listening on http://${host}:${port}`));

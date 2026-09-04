@@ -29,12 +29,21 @@ Tambahkan environment variables berikut pada dashboard hosting. Jangan upload fi
 | `SPOTIFY_API_KEY` | Tidak | Hanya jika nantinya dipakai oleh integrasi tambahan |
 | `NODE_ENV` | Disarankan | Gunakan `production` |
 | `PORT` | Biasanya otomatis | Hosting umumnya mengisi nilai ini sendiri |
+| `SSE_REFRESH_MS` | Tidak | Interval refresh server-side dalam milidetik; default `300000` |
 
 Health check hosting dapat diarahkan ke:
 
 ```text
 GET /health
 ```
+
+Untuk home data, browser memakai satu koneksi Server-Sent Events:
+
+```text
+GET /api/events
+```
+
+Server mengirim event `home` dari cache dan melakukan refresh Spotify secara server-side sesuai `SSE_REFRESH_MS`. Nilai defaultnya adalah 5 menit. Dengan demikian, frontend tidak melakukan polling `/api/home` berulang-ulang.
 
 Respons suksesnya adalah JSON sederhana dengan status `ok` dan endpoint tersebut tidak membutuhkan kredensial Spotify.
 

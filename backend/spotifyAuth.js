@@ -2,6 +2,7 @@ const TOKEN_URL = 'https://accounts.spotify.com/api/token';
 
 let accessToken = null;
 let expiresAt = 0;
+let tokenRequestPromise = null;
 
 function requireCredentials() {
   if (!process.env.SPOTIFY_CLIENT_ID || !process.env.SPOTIFY_CLIENT_SECRET) {
@@ -18,7 +19,17 @@ async function getAccessToken() {
   if (accessToken && Date.now() < expiresAt - safetyMarginMs) {
     return accessToken;
   }
+  if (tokenRequestPromise) return tokenRequestPromise;
 
+  tokenRequestPromise = requestNewToken();
+  try {
+    return await tokenRequestPromise;
+  } finally {
+    tokenRequestPromise = null;
+  }
+}
+
+async function requestNewToken() {
   console.log('[AUTH] Requesting a new Spotify access token');
   const credentials = Buffer.from(
     `${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`
@@ -57,6 +68,7 @@ async function getAccessToken() {
 function clearAccessToken() {
   accessToken = null;
   expiresAt = 0;
+  tokenRequestPromise = null;
 }
 
 module.exports = { getAccessToken, clearAccessToken };

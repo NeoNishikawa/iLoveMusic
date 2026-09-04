@@ -73,7 +73,12 @@ function normalizePlaylist(playlist) {
 }
 
 function responseData(res, data) {
-  res.json({ success: true, data });
+  if (res.writableEnded) return;
+  res.writeHead(200, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Cache-Control': 'no-store'
+  });
+  res.end(JSON.stringify({ success: true, data }));
 }
 
 function cached(key, loader, ttlMs) {
@@ -81,12 +86,15 @@ function cached(key, loader, ttlMs) {
   return existing ? Promise.resolve(existing) : loader().then(data => cache.set(key, data, ttlMs));
 }
 
+let homeRefreshPromise = null;
+
 async function home() {
-  return cached('home', async () => {
+  if (homeRefreshPromise) return homeRefreshPromise;
+  homeRefreshPromise = cached('home', async () => {
     const [tracks, artists, albums, playlists] = await Promise.all([
       spotifyRequest('/search?q=genre%3Aelectronic&type=track&limit=5'),
       spotifyRequest('/search?q=year%3A2025&type=artist&limit=6'),
-      spotifyRequest('/browse/new-releases?limit=4'),
+      spotifyRequest('/search?q=year%3A2025&type=album&limit=4'),
       spotifyRequest('/search?q=genre%3Aelectronic&type=playlist&limit=3')
     ]);
 
@@ -100,7 +108,7 @@ async function home() {
       playlists: (playlists.playlists?.items || []).map(normalizePlaylist),
       genres: []
     };
-  }, 120000);
+  }, 120000).finally(() => { homeRefreshPromise = null; });
 }
 
 async function search(query, types = 'track,artist,album,playlist') {
@@ -128,7 +136,7 @@ async function routeRequest(req, res, pathname, query) {
     return responseData(res, (data.playlists?.items || []).map(normalizePlaylist));
   }
   if (pathname === '/api/new-releases') {
-    const data = await spotifyRequest('/browse/new-releases?limit=20');
+    const data = await spotifyRequest('/search?q=year%3A2025&type=album&limit=20');
     return responseData(res, (data.albums?.items || []).map(normalizeAlbum));
   }
   if (pathname === '/api/featured') return responseData(res, await home());
@@ -151,4 +159,4 @@ async function routeRequest(req, res, pathname, query) {
   return responseData(res, data);
 }
 
-module.exports = { routeRequest };
+module.exports = { routeRequest, getHomeData: home };

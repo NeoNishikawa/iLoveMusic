@@ -718,12 +718,29 @@
           renderPlaylists();
         }
 
-        async function loadHome() {
-          try {
-            applyHomeData(await api('/api/home'));
-          } catch (error) {
-            console.warn('[AURA] Spotify home unavailable; retaining existing content', error.message);
+        function loadHome() {
+          if (!window.EventSource) {
+            api('/api/home').then(applyHomeData).catch(error => console.warn('[AURA] Spotify home unavailable; retaining existing content', error.message));
+            return;
           }
+          const stream = new EventSource('/api/events');
+          stream.addEventListener('home', event => {
+            try {
+              const payload = JSON.parse(event.data);
+              if (payload.success) applyHomeData(payload.data);
+            } catch (error) {
+              console.warn('[AURA] Invalid home stream payload', error.message);
+            }
+          });
+          stream.addEventListener('server-error', event => {
+            try {
+              const payload = JSON.parse(event.data);
+              console.warn('[AURA] Spotify stream unavailable', payload.error?.message || 'Unknown error');
+            } catch (error) {
+              console.warn('[AURA] Spotify stream unavailable');
+            }
+          });
+          window.auraHomeStream = stream;
         }
 
         function renderSearchResults(data) {
