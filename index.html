@@ -183,7 +183,7 @@
 <button class="w-10 h-10 rounded-xl bg-surface-container-high/50 flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors">
 <span class="material-symbols-outlined text-[20px]">notifications</span>
 </button>
-<a class="flex items-center gap-space-2" data-path="profile" href="#">
+<a class="flex items-center gap-space-2" data-path="profile" href="#" id="spotify-login">
 <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
 <span class="material-symbols-outlined text-on-primary text-[18px]">person</span>
 </div>
@@ -671,7 +671,8 @@
 </div>
 </footer>
 </div>
-<script>
+    <script src="https://sdk.scdn.co/spotify-player.js"></script>
+    <script>
       (() => {
         const api = async (path, options = {}) => {
           const controller = new AbortController();
@@ -684,6 +685,108 @@
           } finally {
             clearTimeout(timer);
           }
+        };
+
+        const SPOTIFY_CLIENT_ID = 'a86762ab0f3e45c990224801df83de7c';
+        const SPOTIFY_REDIRECT_URI = `${window.location.origin}/`;
+        const SPOTIFY_SCOPES = 'streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state';
+        let spotifyPlayer = null;
+        let spotifyDeviceId = null;
+        let spotifyPlayerReady = null;
+
+        const randomString = length => {
+          const values = new Uint8Array(length);
+          crypto.getRandomValues(values);
+          return Array.from(values, value => String.fromCharCode(33 + (value % 94))).join('');
+        };
+        const base64Url = buffer => btoa(String.fromCharCode(...new Uint8Array(buffer))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        const spotifyToken = () => sessionStorage.getItem('spotify_access_token');
+        const spotifyTokenExpiresAt = () => Number(sessionStorage.getItem('spotify_expires_at') || 0);
+
+        async function spotifyTokenRequest(body) {
+          const response = await fetch('https://accounts.spotify.com/api/token', {
+            method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(body)
+          });
+          const payload = await response.json();
+          if (!response.ok) throw new Error(payload.error_description || payload.error || 'Spotify login failed');
+          sessionStorage.setItem('spotify_access_token', payload.access_token);
+          sessionStorage.setItem('spotify_expires_at', String(Date.now() + (payload.expires_in * 1000) - 60_000));
+          if (payload.refresh_token) sessionStorage.setItem('spotify_refresh_token', payload.refresh_token);
+          return payload.access_token;
+        }
+
+        async function refreshSpotifyToken() {
+          const refreshToken = sessionStorage.getItem('spotify_refresh_token');
+          if (!refreshToken) return null;
+          return spotifyTokenRequest({ grant_type: 'refresh_token', refresh_token: refreshToken, client_id: SPOTIFY_CLIENT_ID });
+        }
+
+        async function ensureSpotifyToken() {
+          if (spotifyToken() && Date.now() < spotifyTokenExpiresAt()) return spotifyToken();
+          return refreshSpotifyToken();
+        }
+
+        async function startSpotifyLogin() {
+          const verifier = randomString(96);
+          const challenge = base64Url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)));
+          const state = randomString(32);
+          sessionStorage.setItem('spotify_pkce_verifier', verifier);
+          sessionStorage.setItem('spotify_oauth_state', state);
+          const params = new URLSearchParams({ client_id: SPOTIFY_CLIENT_ID, response_type: 'code', redirect_uri: SPOTIFY_REDIRECT_URI, code_challenge_method: 'S256', code_challenge: challenge, state, scope: SPOTIFY_SCOPES });
+          window.location.assign(`https://accounts.spotify.com/authorize?${params}`);
+        }
+
+        async function handleSpotifyCallback() {
+          const params = new URLSearchParams(window.location.search);
+          const code = params.get('code');
+          if (!code) return;
+          const expectedState = sessionStorage.getItem('spotify_oauth_state');
+          if (!expectedState || expectedState !== params.get('state')) throw new Error('Spotify login state validation failed');
+          await spotifyTokenRequest({ grant_type: 'authorization_code', code, redirect_uri: SPOTIFY_REDIRECT_URI, client_id: SPOTIFY_CLIENT_ID, code_verifier: sessionStorage.getItem('spotify_pkce_verifier') });
+          sessionStorage.removeItem('spotify_pkce_verifier');
+          sessionStorage.removeItem('spotify_oauth_state');
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+
+        async function spotifyApi(path, options = {}) {
+          let token = await ensureSpotifyToken();
+          if (!token) { await startSpotifyLogin(); return null; }
+          let response = await fetch(`https://api.spotify.com/v1${path}`, { ...options, headers: { ...(options.headers || {}), Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } });
+          if (response.status === 401) {
+            token = await refreshSpotifyToken();
+            if (!token) { await startSpotifyLogin(); return null; }
+            response = await fetch(`https://api.spotify.com/v1${path}`, { ...options, headers: { ...(options.headers || {}), Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } });
+          }
+          if (!response.ok && response.status !== 204) throw new Error(`Spotify playback request failed (${response.status})`);
+          return response.status === 204 ? null : response.json();
+        }
+
+        function initSpotifyPlayer() {
+          if (spotifyPlayerReady) return spotifyPlayerReady;
+          spotifyPlayerReady = new Promise((resolve, reject) => {
+            if (!window.Spotify) return reject(new Error('Spotify Web Playback SDK is not ready'));
+            spotifyPlayer = new Spotify.Player({ name: 'Aura Web Player', volume: 0.8, getOAuthToken: async callback => callback(await ensureSpotifyToken()) });
+            spotifyPlayer.addListener('ready', ({ device_id }) => { spotifyDeviceId = device_id; resolve(spotifyPlayer); });
+            spotifyPlayer.addListener('initialization_error', ({ message }) => reject(new Error(message)));
+            spotifyPlayer.addListener('authentication_error', ({ message }) => reject(new Error(message)));
+            spotifyPlayer.addListener('account_error', ({ message }) => reject(new Error(message)));
+            spotifyPlayer.connect().then(connected => { if (!connected) reject(new Error('Spotify player could not connect')); });
+          });
+          return spotifyPlayerReady;
+        }
+
+        async function playSpotifyTrack(trackId) {
+          const token = await ensureSpotifyToken();
+          if (!token) { await startSpotifyLogin(); return null; }
+          const player = await initSpotifyPlayer();
+          if (!spotifyDeviceId) throw new Error('Spotify playback device is not ready');
+          await spotifyApi('/me/player', { method: 'PUT', body: JSON.stringify({ device_ids: [spotifyDeviceId], play: true }) });
+          await spotifyApi(`/me/player/play?device_id=${encodeURIComponent(spotifyDeviceId)}`, { method: 'PUT', body: JSON.stringify({ uris: [`spotify:track:${trackId}`] }) });
+          return player;
+        }
+
+        window.onSpotifyWebPlaybackSDKReady = () => {
+          if (spotifyToken()) initSpotifyPlayer().catch(error => console.warn('[AURA] Spotify player unavailable', error.message));
         };
 
         const image = item => item?.image || item?.images?.[0]?.url || '';
@@ -790,7 +893,10 @@
               audio.play().catch(() => {});
               return;
             }
-            if (track.spotifyUrl) window.open(track.spotifyUrl, '_blank', 'noopener,noreferrer');
+            playSpotifyTrack(track.id).catch(error => {
+              console.warn('[AURA] Spotify playback unavailable', error.message);
+              if (!spotifyToken()) startSpotifyLogin();
+            });
           };
           document.addEventListener('click', event => {
             const button = event.target.closest('button');
@@ -826,7 +932,10 @@
           });
         };
 
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
+          const loginButton = document.getElementById('spotify-login');
+          if (loginButton) loginButton.addEventListener('click', event => { event.preventDefault(); if (spotifyToken()) initSpotifyPlayer().catch(error => console.warn('[AURA] Spotify player unavailable', error.message)); else startSpotifyLogin(); });
+          try { await handleSpotifyCallback(); } catch (error) { console.warn('[AURA] Spotify login unavailable', error.message); }
           initSpotifySearch();
           initPreviewPlayer();
           loadHome();
