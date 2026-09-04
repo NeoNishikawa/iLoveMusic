@@ -1,6 +1,6 @@
 {
   "name": "ilovemusic",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Aura music frontend with a server-side Spotify integration",
   "main": "server.js",
