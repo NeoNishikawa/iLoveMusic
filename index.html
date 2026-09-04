@@ -187,10 +187,12 @@
       <button class="md:hidden w-10 h-10 rounded-xl bg-surface-container-high/50 flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors" id="mobile-search-trigger">
         <span class="material-symbols-outlined text-[20px]">search</span>
       </button>
-      <a class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-primary-container text-on-primary-container text-body-sm font-medium hover:opacity-90 transition-opacity" href="#" id="spotify-login-btn">
-        <span class="material-symbols-outlined text-[18px]">login</span>
-        <span id="login-status-text">Spotify Login</span>
-      </a>
+      <button class="w-10 h-10 rounded-xl bg-surface-container-high/50 flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors">
+        <span class="material-symbols-outlined text-[20px]">notifications</span>
+      </button>
+      <div class="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-on-primary font-bold shadow-md">
+        <span class="material-symbols-outlined text-[20px]">person</span>
+      </div>
     </div>
   </header>
 
@@ -229,7 +231,7 @@
               <span class="text-label-sm text-primary uppercase">Audiophile Sound Engine</span>
             </div>
             <h1 class="text-4xl md:text-headline-xl text-on-surface tracking-tight font-headline-xl">Music, Beyond Sound</h1>
-            <p class="text-body-lg text-on-surface-variant max-w-xl">Nikmati musik berkualitas tinggi dengan integrasi Spotify API & Spatial Audio.</p>
+            <p class="text-body-lg text-on-surface-variant max-w-xl">Nikmati pemutaran audio resolusi tinggi secara penuh tanpa batasan.</p>
             <div class="flex flex-wrap items-center gap-space-4 pt-space-2">
               <button class="px-space-6 py-space-3 rounded-xl bg-primary text-on-primary font-medium hover:scale-105 transition-all flex items-center gap-space-2" id="hero-explore-btn">
                 <span class="material-symbols-outlined">explore</span> Jelajahi Musik
@@ -248,7 +250,7 @@
               <div class="absolute bottom-space-4 left-space-4 right-space-4 flex items-center justify-between z-10">
                 <div>
                   <div id="hero-song-title" class="text-headline-sm text-on-surface">Pilih Lagu</div>
-                  <div id="hero-song-artist" class="text-body-sm text-secondary">Aura Player Ready</div>
+                  <div id="hero-song-artist" class="text-body-sm text-secondary">Aura Audio Stream Engine</div>
                 </div>
               </div>
             </div>
@@ -357,7 +359,7 @@
 
 <script>
   (() => {
-    // --- APP STATE & VARIABLES ---
+    // --- APP STATE & AUDIO ENGINE ---
     let spotifySDKPlayer = null;
     let spotifyDeviceId = null;
     let userAccessToken = null;
@@ -381,11 +383,10 @@
       totalTime: document.getElementById('player-total-time'),
       progressBar: document.getElementById('player-progress-bar'),
       progressContainer: document.getElementById('player-progress-container'),
-      volumeSlider: document.getElementById('player-volume-slider'),
-      loginBtnText: document.getElementById('login-status-text')
+      volumeSlider: document.getElementById('player-volume-slider')
     };
 
-    // --- API WRAPPER ---
+    // --- API HELPER ---
     const api = async (path, options = {}) => {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), options.timeout || 10000);
@@ -407,32 +408,34 @@
       return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
     }
 
-    // --- SPOTIFY OAUTH & SDK INITIALIZATION ---
-    async function checkUserToken() {
+    // --- AUTOMATIC SILENT SPOTIFY INITIALIZATION ---
+    async function initSystemAccessToken() {
       try {
         const response = await fetch('/api/spotify/token', { credentials: 'include' });
         if (response.ok) {
           const payload = await response.json();
           userAccessToken = payload.data?.accessToken;
-          if (ui.loginBtnText) ui.loginBtnText.textContent = "Spotify Connected";
           return true;
         }
-      } catch (e) { console.warn('Token check failed'); }
+      } catch (e) {
+        console.warn('[AURA] Server token fetch warning:', e.message);
+      }
       return false;
     }
 
     window.onSpotifyWebPlaybackSDKReady = () => {
-      checkUserToken().then(hasToken => {
-        if (!hasToken) return;
+      initSystemAccessToken().then(hasToken => {
+        if (!hasToken || !window.Spotify) return;
+
         spotifySDKPlayer = new Spotify.Player({
-          name: 'Aura Web Player',
+          name: 'Aura Shared Player',
           getOAuthToken: cb => cb(userAccessToken),
           volume: 0.8
         });
 
         spotifySDKPlayer.addListener('ready', ({ device_id }) => {
           spotifyDeviceId = device_id;
-          console.log('[AURA] Spotify Web Playback SDK Device Ready ID:', device_id);
+          console.log('[AURA] Spotify Web SDK Ready. Shared Device ID:', device_id);
         });
 
         spotifySDKPlayer.addListener('player_state_changed', state => {
@@ -470,12 +473,12 @@
       if (playlist.length) activePlaylist = playlist;
       if (index !== -1) currentTrackIndex = index;
 
-      // Update UI Header Card
+      // Update Header Display Card
       document.getElementById('hero-song-title').textContent = track.title || track.name;
       document.getElementById('hero-song-artist').textContent = track.artist || 'Artist';
       if (track.image) document.getElementById('hero-album-cover').style.backgroundImage = `url('${track.image}')`;
 
-      // Update Footer Info
+      // Update Footer Player Info
       ui.title.textContent = track.title || track.name;
       ui.artist.textContent = track.artist || 'Artist';
       if (track.image) {
@@ -483,7 +486,7 @@
         ui.image.innerHTML = '';
       }
 
-      // OPSI 1: Putar via Spotify SDK (Lagu Penuh - Butuh Spotify Login)
+      // METODE 1: Spotify Web Playback SDK (Lagu Penuh via Server Token)
       if (spotifyDeviceId && userAccessToken && track.id) {
         try {
           const res = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${spotifyDeviceId}`, {
@@ -495,10 +498,12 @@
             htmlAudio.pause();
             return;
           }
-        } catch (e) { console.warn('Gagal memutar via SDK, beralih ke HTML Audio Fallback'); }
+        } catch (e) {
+          console.warn('[AURA] Fallback to HTML Audio Engine');
+        }
       }
 
-      // OPSI 2: Fallback ke HTML5 Preview Audio (30 detik)
+      // METODE 2: Fallback ke Pemutar HTML5 Preview
       isSDKActive = false;
       if (track.previewUrl) {
         htmlAudio.src = track.previewUrl;
@@ -506,7 +511,7 @@
         isPlaying = true;
         updatePlayIcons(true);
       } else {
-        alert(`Sistem tidak menemukan audio preview untuk "${track.title || track.name}". Silakan klik tombol "Spotify Login" di kanan atas agar dapat memutar lagu secara penuh.`);
+        alert(`Sistem sedang menyiapkan stream untuk "${track.title || track.name}". Silakan coba lagu lainnya.`);
       }
     }
 
@@ -527,7 +532,7 @@
       }
     }
 
-    // HTML Audio Listeners
+    // Listener Progress Audio HTML5
     htmlAudio.addEventListener('timeupdate', () => {
       if (isSDKActive) return;
       if (htmlAudio.duration) {
@@ -546,7 +551,7 @@
       }
     });
 
-    // Seek Tracker
+    // Seek / Tracker Click Handler
     if (ui.progressContainer) {
       ui.progressContainer.addEventListener('click', (e) => {
         const rect = ui.progressContainer.getBoundingClientRect();
@@ -561,7 +566,7 @@
       });
     }
 
-    // Volume Slider
+    // Kontrol Volume
     if (ui.volumeSlider) {
       ui.volumeSlider.addEventListener('input', (e) => {
         const val = parseFloat(e.target.value);
@@ -585,7 +590,7 @@
       }
     });
 
-    // --- DYNAMIC RENDER FUNCTIONS ---
+    // --- RENDER DYNAMIS ---
     let globalSongs = [];
 
     function renderTrending(songs) {
@@ -672,7 +677,7 @@
       `).join('');
     }
 
-    // --- DATA FETCHING & EVENT HANDLERS ---
+    // --- FETCH DATA HOME ---
     async function loadHome() {
       try {
         const data = await api('/api/home');
@@ -682,7 +687,7 @@
         if (data.playlists) renderPlaylists(data.playlists);
         renderGenres();
       } catch (e) {
-        console.warn('Load home error:', e.message);
+        console.warn('[AURA] Error loading home data:', e.message);
       }
     }
 
@@ -694,12 +699,14 @@
           playTrack(data.tracks[0], data.tracks, 0);
           document.getElementById('sec-trending').scrollIntoView({ behavior: 'smooth' });
         }
-      } catch (e) { alert('Gagal mencari lagu: ' + e.message); }
+      } catch (e) {
+        alert('Gagal mencari lagu: ' + e.message);
+      }
     }
 
-    // Global Click Delegation
+    // Global Event Delegation (Klik Kartu & List)
     document.addEventListener('click', e => {
-      // Klik Trending Row
+      // Klik Row Lagu Trending
       const trendRow = e.target.closest('#trending-songs-list > div');
       if (trendRow) {
         const idx = parseInt(trendRow.dataset.index, 10);
@@ -707,7 +714,7 @@
         return;
       }
 
-      // Klik Artist Card / Album Card / Genre / Playlist
+      // Klik Kartu Artis / Album / Genre / Playlist
       const card = e.target.closest('.artist-card, .album-card, .genre-card, .playlist-card');
       if (card) {
         const query = card.dataset.query;
@@ -715,7 +722,7 @@
         return;
       }
 
-      // Quick Search Tags
+      // Tag Pencarian Cepat Modal
       const tag = e.target.closest('#quick-search-tags > span');
       if (tag) {
         const text = tag.textContent.trim();
@@ -725,7 +732,7 @@
       }
     });
 
-    // Modal Search Input
+    // Input Search Modal Event
     const modalInput = document.getElementById('modal-search-input');
     modalInput?.addEventListener('keydown', e => {
       if (e.key === 'Enter') {
@@ -734,7 +741,7 @@
       }
     });
 
-    // Nav Links (Sidebar)
+    // Navigasi Sidebar Links
     document.querySelectorAll('.nav-item').forEach(link => {
       link.addEventListener('click', e => {
         e.preventDefault();
@@ -757,12 +764,7 @@
       });
     });
 
-    // UI Trigger Modals & Drawers
-    document.getElementById('spotify-login-btn')?.addEventListener('click', e => {
-      e.preventDefault();
-      window.location.assign('/api/spotify/login');
-    });
-
+    // Triggers Modal & Drawer Mobile
     const searchModal = document.getElementById('search-modal');
     document.getElementById('desktop-search-trigger')?.addEventListener('click', () => searchModal.classList.remove('hidden'));
     document.getElementById('mobile-search-trigger')?.addEventListener('click', () => searchModal.classList.remove('hidden'));
