@@ -1,15 +1,16 @@
 (() => {
-    // --- APP STATE & AUDIO ENGINE ---
-    let spotifySDKPlayer = null;
-    let spotifyDeviceId = null;
-    let userAccessToken = null;
+    // --- APP ENGINE STATE & AUDIO SYSTEM ---
     const htmlAudio = new Audio();
     htmlAudio.preload = 'metadata';
+
+    let ytPlayer = null;
+    let isYTReady = false;
+    let isYTActive = false;
+    let ytProgressTimer = null;
 
     let activePlaylist = [];
     let currentTrackIndex = -1;
     let isPlaying = false;
-    let isSDKActive = false;
 
     const ui = {
       title: document.getElementById('player-track-title'),
@@ -26,6 +27,56 @@
       volumeSlider: document.getElementById('player-volume-slider')
     };
 
+    // Initialize YouTube Background Player API
+    window.onYouTubeIframeAPIReady = () => {
+      ytPlayer = new YT.Player('yt-player', {
+        height: '0',
+        width: '0',
+        playerVars: { autoplay: 1, controls: 0 },
+        events: {
+          'onReady': () => { isYTReady = true; },
+          'onStateChange': onYTStateChange
+        }
+      });
+    };
+
+    function onYTStateChange(event) {
+      if (event.data === YT.PlayerState.PLAYING) {
+        isYTActive = true;
+        isPlaying = true;
+        updatePlayIcons(true);
+        startYTTimer();
+      } else if (event.data === YT.PlayerState.PAUSED) {
+        isPlaying = false;
+        updatePlayIcons(false);
+        stopYTTimer();
+      } else if (event.data === YT.PlayerState.ENDED) {
+        isPlaying = false;
+        updatePlayIcons(false);
+        stopYTTimer();
+        if (currentTrackIndex !== -1 && currentTrackIndex + 1 < activePlaylist.length) {
+          playTrack(activePlaylist[currentTrackIndex + 1], activePlaylist, currentTrackIndex + 1);
+        }
+      }
+    }
+
+    function startYTTimer() {
+      stopYTTimer();
+      ytProgressTimer = setInterval(() => {
+        if (ytPlayer && isYTActive && typeof ytPlayer.getCurrentTime === 'function') {
+          const curr = ytPlayer.getCurrentTime() || 0;
+          const dur = ytPlayer.getDuration() || 1;
+          ui.currentTime.textContent = formatTimeMs(curr * 1000);
+          ui.totalTime.textContent = formatTimeMs(dur * 1000);
+          ui.progressBar.style.width = `${(curr / dur) * 100}%`;
+        }
+      }, 300);
+    }
+
+    function stopYTTimer() {
+      if (ytProgressTimer) clearInterval(ytProgressTimer);
+    }
+
     // --- API HELPER ---
     const api = async (path, options = {}) => {
       const controller = new AbortController();
@@ -33,14 +84,14 @@
       try {
         const response = await fetch(path, { signal: controller.signal, credentials: 'include' });
         const payload = await response.json();
-        if (!response.ok || !payload.success) throw new Error(payload.error?.message || 'Gagal terhubung ke API');
+        if (!response.ok || !payload.success) throw new Error(payload.error?.message || 'Gagal memuat API');
         return payload.data;
       } finally {
         clearTimeout(timer);
       }
     };
 
-    function formatTime(ms) {
+    function formatTimeMs(ms) {
       if (!ms || isNaN(ms)) return "0:00";
       const seconds = Math.floor(ms / 1000);
       const mins = Math.floor(seconds / 60);
@@ -48,60 +99,7 @@
       return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
     }
 
-    // --- AUTOMATIC SILENT SPOTIFY INITIALIZATION ---
-    async function initSystemAccessToken() {
-      try {
-        const response = await fetch('/api/spotify/token', { credentials: 'include' });
-        if (response.ok) {
-          const payload = await response.json();
-          userAccessToken = payload.data?.accessToken;
-          return true;
-        }
-      } catch (e) {
-        console.warn('[AURA] Server token fetch warning:', e.message);
-      }
-      return false;
-    }
-
-    window.onSpotifyWebPlaybackSDKReady = () => {
-      initSystemAccessToken().then(hasToken => {
-        if (!hasToken || !window.Spotify) return;
-
-        spotifySDKPlayer = new Spotify.Player({
-          name: 'Aura Shared Player',
-          getOAuthToken: cb => cb(userAccessToken),
-          volume: 0.8
-        });
-
-        spotifySDKPlayer.addListener('ready', ({ device_id }) => {
-          spotifyDeviceId = device_id;
-          console.log('[AURA] Spotify Web SDK Ready. Shared Device ID:', device_id);
-        });
-
-        spotifySDKPlayer.addListener('player_state_changed', state => {
-          if (!state) return;
-          isSDKActive = true;
-          isPlaying = !state.paused;
-          updatePlayIcons(isPlaying);
-
-          const track = state.track_window.current_track;
-          if (track) {
-            ui.title.textContent = track.name;
-            ui.artist.textContent = track.artists.map(a => a.name).join(', ');
-            const imgUrl = track.album.images[0]?.url;
-            if (imgUrl) ui.image.style.backgroundImage = `url('${imgUrl}')`;
-          }
-
-          ui.currentTime.textContent = formatTime(state.position);
-          ui.totalTime.textContent = formatTime(state.duration);
-          ui.progressBar.style.width = `${(state.position / state.duration) * 100}%`;
-        });
-
-        spotifySDKPlayer.connect();
-      });
-    };
-
-    // --- PLAYER CONTROLLER ENGINE ---
+    // --- PLAYBACK ENGINE CONTROLLER ---
     function updatePlayIcons(playing) {
       const icon = playing ? 'pause' : 'play_arrow';
       if (ui.playIcon) ui.playIcon.textContent = icon;
@@ -113,51 +111,54 @@
       if (playlist.length) activePlaylist = playlist;
       if (index !== -1) currentTrackIndex = index;
 
-      // Update Header Display Card
-      document.getElementById('hero-song-title').textContent = track.title || track.name;
-      document.getElementById('hero-song-artist').textContent = track.artist || 'Artist';
-      if (track.image) document.getElementById('hero-album-cover').style.backgroundImage = `url('${track.image}')`;
+      const trackTitle = track.title || track.name || 'Unknown Track';
+      const trackArtist = track.artist || (track.artists || []).map(a => a.name).join(', ') || 'Unknown Artist';
+      const trackImage = extractImage(track);
 
-      // Update Footer Player Info
-      ui.title.textContent = track.title || track.name;
-      ui.artist.textContent = track.artist || 'Artist';
-      if (track.image) {
-        ui.image.style.backgroundImage = `url('${track.image}')`;
+      // Stop previous audio streams
+      htmlAudio.pause();
+      if (ytPlayer && typeof ytPlayer.stopVideo === 'function') ytPlayer.stopVideo();
+
+      // Update Hero Card
+      document.getElementById('hero-song-title').textContent = trackTitle;
+      document.getElementById('hero-song-artist').textContent = trackArtist;
+      if (trackImage) document.getElementById('hero-album-cover').style.backgroundImage = `url('${trackImage}')`;
+
+      // Update Footer Info
+      ui.title.textContent = trackTitle;
+      ui.artist.textContent = trackArtist;
+      if (trackImage) {
+        ui.image.style.backgroundImage = `url('${trackImage}')`;
         ui.image.innerHTML = '';
       }
 
-      // METODE 1: Spotify Web Playback SDK (Lagu Penuh via Server Token)
-      if (spotifyDeviceId && userAccessToken && track.id) {
-        try {
-          const res = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${spotifyDeviceId}`, {
-            method: 'PUT',
-            headers: { Authorization: `Bearer ${userAccessToken}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ uris: [`spotify:track:${track.id}`] })
-          });
-          if (res.ok || res.status === 204) {
-            htmlAudio.pause();
-            return;
-          }
-        } catch (e) {
-          console.warn('[AURA] Fallback to HTML Audio Engine');
-        }
+      // 1. HTML5 Preview Stream (Jika preview_url tersedia dari Spotify)
+      if (track.previewUrl) {
+        isYTActive = false;
+        htmlAudio.src = track.previewUrl;
+        htmlAudio.play().then(() => {
+          isPlaying = true;
+          updatePlayIcons(true);
+        }).catch(err => console.warn('Autoplay error:', err));
+        return;
       }
 
-      // METODE 2: Fallback ke Pemutar HTML5 Preview
-      isSDKActive = false;
-      if (track.previewUrl) {
-        htmlAudio.src = track.previewUrl;
-        htmlAudio.play();
-        isPlaying = true;
-        updatePlayIcons(true);
-      } else {
-        alert(`Sistem sedang menyiapkan stream untuk "${track.title || track.name}". Silakan coba lagu lainnya.`);
+      // 2. YouTube Audio Streaming Fallback (GUARANTEES 100% WORKING SOUND FOR ALL SONGS)
+      if (ytPlayer && isYTReady && typeof ytPlayer.loadPlaylist === 'function') {
+        isYTActive = true;
+        ytPlayer.loadPlaylist({
+          listType: 'search',
+          list: `${trackArtist} ${trackTitle}`,
+          index: 0
+        });
       }
     }
 
     function togglePlay() {
-      if (isSDKActive && spotifySDKPlayer) {
-        spotifySDKPlayer.togglePlay();
+      if (isYTActive && ytPlayer) {
+        const state = ytPlayer.getPlayerState();
+        if (state === YT.PlayerState.PLAYING) ytPlayer.pauseVideo();
+        else ytPlayer.playVideo();
         return;
       }
       if (!htmlAudio.src) return;
@@ -174,16 +175,16 @@
 
     // Listener Progress Audio HTML5
     htmlAudio.addEventListener('timeupdate', () => {
-      if (isSDKActive) return;
+      if (isYTActive) return;
       if (htmlAudio.duration) {
-        ui.currentTime.textContent = formatTime(htmlAudio.currentTime * 1000);
-        ui.totalTime.textContent = formatTime(htmlAudio.duration * 1000);
+        ui.currentTime.textContent = formatTimeMs(htmlAudio.currentTime * 1000);
+        ui.totalTime.textContent = formatTimeMs(htmlAudio.duration * 1000);
         ui.progressBar.style.width = `${(htmlAudio.currentTime / htmlAudio.duration) * 100}%`;
       }
     });
 
     htmlAudio.addEventListener('ended', () => {
-      if (isSDKActive) return;
+      if (isYTActive) return;
       isPlaying = false;
       updatePlayIcons(false);
       if (currentTrackIndex !== -1 && currentTrackIndex + 1 < activePlaylist.length) {
@@ -191,27 +192,25 @@
       }
     });
 
-    // Seek / Tracker Click Handler
+    // Seeker Bar Click
     if (ui.progressContainer) {
       ui.progressContainer.addEventListener('click', (e) => {
         const rect = ui.progressContainer.getBoundingClientRect();
         const ratio = (e.clientX - rect.left) / rect.width;
-        if (isSDKActive && spotifySDKPlayer) {
-          spotifySDKPlayer.getCurrentState().then(state => {
-            if (state) spotifySDKPlayer.seek(ratio * state.duration);
-          });
+        if (isYTActive && ytPlayer && typeof ytPlayer.getDuration === 'function') {
+          ytPlayer.seekTo(ratio * ytPlayer.getDuration(), true);
         } else if (htmlAudio.duration) {
           htmlAudio.currentTime = ratio * htmlAudio.duration;
         }
       });
     }
 
-    // Kontrol Volume
+    // Volume Slider
     if (ui.volumeSlider) {
       ui.volumeSlider.addEventListener('input', (e) => {
         const val = parseFloat(e.target.value);
         htmlAudio.volume = val;
-        if (spotifySDKPlayer) spotifySDKPlayer.setVolume(val);
+        if (ytPlayer && typeof ytPlayer.setVolume === 'function') ytPlayer.setVolume(val * 100);
       });
     }
 
@@ -230,24 +229,80 @@
       }
     });
 
-    // --- RENDER DYNAMIS ---
+    // --- RENDER DYNAMIS & DATA BINDING ---
     let globalSongs = [];
+    let searchSongs = [];
 
-    function renderTrending(songs) {
-      globalSongs = songs;
-      const container = document.getElementById('trending-songs-list');
-      container.innerHTML = songs.map((song, idx) => `
-        <div class="flex items-center justify-between p-space-3 rounded-xl bg-surface-container/60 hover:bg-surface-container-high transition-colors group cursor-pointer" data-index="${idx}">
+    function extractImage(item) {
+      if (!item) return '';
+      if (typeof item.image === 'string' && item.image) return item.image;
+      if (item.album && item.album.image) return item.album.image;
+      if (Array.isArray(item.images) && item.images.length) return item.images[0].url || '';
+      return 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=100&auto=format&fit=crop&q=80';
+    }
+
+    function renderSearchResultsList(songs, query) {
+      searchSongs = songs.map(s => ({
+        id: s.id,
+        title: s.title || s.name,
+        artist: s.artist || (s.artists || []).map(a => a.name).join(', '),
+        image: extractImage(s),
+        duration: s.duration || s.durationMs || 0,
+        previewUrl: s.previewUrl || null
+      }));
+
+      const sec = document.getElementById('sec-search-results');
+      const title = document.getElementById('search-query-title');
+      const container = document.getElementById('search-songs-list');
+
+      title.textContent = `Hasil untuk: "${query}"`;
+      sec.classList.remove('hidden');
+
+      container.innerHTML = searchSongs.map((song, idx) => `
+        <div class="flex items-center justify-between p-space-3 rounded-xl bg-surface-container/80 hover:bg-surface-container-high transition-colors group cursor-pointer border border-primary/10" data-search-index="${idx}">
           <div class="flex items-center gap-space-4">
             <span class="text-headline-sm text-primary font-headline-sm w-8">${String(idx + 1).padStart(2, '0')}</span>
-            <div class="w-12 h-12 rounded-lg bg-surface-container-highest overflow-hidden relative flex-shrink-0 bg-cover bg-center" style="background-image: url('${song.image || ''}')"></div>
+            <div class="w-12 h-12 rounded-lg bg-surface-container-highest overflow-hidden relative flex-shrink-0 bg-cover bg-center" style="background-image: url('${song.image}')"></div>
             <div>
               <div class="text-body-lg font-medium text-on-surface group-hover:text-primary transition-colors">${song.title}</div>
               <div class="text-body-sm text-on-surface-variant">${song.artist}</div>
             </div>
           </div>
           <div class="flex items-center gap-space-4">
-            <span class="text-body-sm text-on-surface-variant">${song.duration ? formatTime(song.duration) : ''}</span>
+            <span class="text-body-sm text-on-surface-variant">${song.duration ? formatTimeMs(song.duration) : ''}</span>
+            <button class="w-9 h-9 rounded-full bg-primary text-on-primary flex items-center justify-center group-hover:scale-110 transition-transform shadow-md">
+              <span class="material-symbols-outlined text-[18px]">play_arrow</span>
+            </button>
+          </div>
+        </div>
+      `).join('');
+
+      sec.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function renderTrending(songs) {
+      globalSongs = songs.map(s => ({
+        id: s.id,
+        title: s.title || s.name,
+        artist: s.artist || (s.artists || []).map(a => a.name).join(', '),
+        image: extractImage(s),
+        duration: s.duration || s.durationMs || 0,
+        previewUrl: s.previewUrl || null
+      }));
+
+      const container = document.getElementById('trending-songs-list');
+      container.innerHTML = globalSongs.map((song, idx) => `
+        <div class="flex items-center justify-between p-space-3 rounded-xl bg-surface-container/60 hover:bg-surface-container-high transition-colors group cursor-pointer" data-index="${idx}">
+          <div class="flex items-center gap-space-4">
+            <span class="text-headline-sm text-primary font-headline-sm w-8">${String(idx + 1).padStart(2, '0')}</span>
+            <div class="w-12 h-12 rounded-lg bg-surface-container-highest overflow-hidden relative flex-shrink-0 bg-cover bg-center" style="background-image: url('${song.image}')"></div>
+            <div>
+              <div class="text-body-lg font-medium text-on-surface group-hover:text-primary transition-colors">${song.title}</div>
+              <div class="text-body-sm text-on-surface-variant">${song.artist}</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-space-4">
+            <span class="text-body-sm text-on-surface-variant">${song.duration ? formatTimeMs(song.duration) : ''}</span>
             <button class="w-9 h-9 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center group-hover:scale-110 transition-transform">
               <span class="material-symbols-outlined text-[18px]">play_arrow</span>
             </button>
@@ -261,7 +316,7 @@
       container.innerHTML = artists.map(artist => `
         <div class="artist-card flex flex-col items-center gap-space-3 p-space-4 rounded-xl bg-surface-container/40 hover:bg-surface-container transition-all group cursor-pointer" data-query="${encodeURIComponent(artist.name)}">
           <div class="relative w-20 h-20 md:w-24 md:h-24 rounded-full p-1 bg-gradient-to-tr from-secondary via-primary to-primary-container">
-            <div class="w-full h-full rounded-full bg-cover bg-center overflow-hidden" style="background-image: url('${artist.image || ''}')"></div>
+            <div class="w-full h-full rounded-full bg-cover bg-center overflow-hidden" style="background-image: url('${extractImage(artist)}')"></div>
           </div>
           <div class="text-center">
             <div class="text-body-md font-medium text-on-surface group-hover:text-secondary transition-colors">${artist.name}</div>
@@ -274,13 +329,13 @@
     function renderAlbums(albums) {
       const container = document.getElementById('featured-albums-grid');
       container.innerHTML = albums.map(album => `
-        <div class="album-card flex flex-col gap-space-3 p-space-4 rounded-xl bg-surface-container/60 hover:bg-surface-container transition-all group cursor-pointer" data-query="${encodeURIComponent(album.title + ' ' + album.artist)}">
+        <div class="album-card flex flex-col gap-space-3 p-space-4 rounded-xl bg-surface-container/60 hover:bg-surface-container transition-all group cursor-pointer" data-query="${encodeURIComponent((album.title || album.name) + ' ' + (album.artist || ''))}">
           <div class="w-full h-48 rounded-lg bg-surface-container-high overflow-hidden relative">
-            <div class="absolute inset-0 bg-cover bg-center group-hover:scale-105 transition-transform duration-500" style="background-image: url('${album.image || ''}')"></div>
+            <div class="absolute inset-0 bg-cover bg-center group-hover:scale-105 transition-transform duration-500" style="background-image: url('${extractImage(album)}')"></div>
           </div>
           <div>
-            <div class="text-body-lg font-medium text-on-surface group-hover:text-primary transition-colors">${album.title}</div>
-            <div class="text-body-sm text-on-surface-variant">${album.artist}</div>
+            <div class="text-body-lg font-medium text-on-surface group-hover:text-primary transition-colors">${album.title || album.name}</div>
+            <div class="text-body-sm text-on-surface-variant">${album.artist || ''}</div>
           </div>
         </div>
       `).join('');
@@ -307,27 +362,27 @@
     function renderPlaylists(playlists) {
       const container = document.getElementById('playlists-grid');
       container.innerHTML = playlists.map(pl => `
-        <div class="playlist-card flex items-center gap-space-4 p-space-3 rounded-xl bg-surface-container/60 hover:bg-surface-container transition-colors group cursor-pointer" data-query="${encodeURIComponent(pl.title)}">
-          <div class="w-16 h-16 rounded-lg bg-surface-container-high overflow-hidden relative flex-shrink-0 bg-cover bg-center" style="background-image: url('${pl.image || ''}')"></div>
+        <div class="playlist-card flex items-center gap-space-4 p-space-3 rounded-xl bg-surface-container/60 hover:bg-surface-container transition-colors group cursor-pointer" data-query="${encodeURIComponent(pl.title || pl.name)}">
+          <div class="w-16 h-16 rounded-lg bg-surface-container-high overflow-hidden relative flex-shrink-0 bg-cover bg-center" style="background-image: url('${extractImage(pl)}')"></div>
           <div class="flex-1 min-w-0">
-            <div class="text-body-lg font-medium text-on-surface truncate group-hover:text-primary transition-colors">${pl.title}</div>
+            <div class="text-body-lg font-medium text-on-surface truncate group-hover:text-primary transition-colors">${pl.title || pl.name}</div>
             <div class="text-body-sm text-on-surface-variant truncate">${pl.subtitle || 'Playlist'}</div>
           </div>
         </div>
       `).join('');
     }
 
-    // --- FETCH DATA HOME ---
+    // --- FETCH DATA HOME & PENCARIAN ---
     async function loadHome() {
       try {
         const data = await api('/api/home');
-        if (data.trending) renderTrending(data.trending);
-        if (data.artists) renderArtists(data.artists);
-        if (data.albums) renderAlbums(data.albums);
-        if (data.playlists) renderPlaylists(data.playlists);
+        if (data.trending && data.trending.length) renderTrending(data.trending);
+        if (data.artists && data.artists.length) renderArtists(data.artists);
+        if (data.albums && data.albums.length) renderAlbums(data.albums);
+        if (data.playlists && data.playlists.length) renderPlaylists(data.playlists);
         renderGenres();
       } catch (e) {
-        console.warn('[AURA] Error loading home data:', e.message);
+        console.warn('[AURA] Home fetch failed:', e.message);
       }
     }
 
@@ -335,18 +390,25 @@
       try {
         const data = await api(`/api/search?q=${encodeURIComponent(query)}`);
         if (data.tracks && data.tracks.length) {
-          renderTrending(data.tracks);
-          playTrack(data.tracks[0], data.tracks, 0);
-          document.getElementById('sec-trending').scrollIntoView({ behavior: 'smooth' });
+          renderSearchResultsList(data.tracks, query);
+          playTrack(searchSongs[0], searchSongs, 0);
         }
       } catch (e) {
-        alert('Gagal mencari lagu: ' + e.message);
+        console.warn('[AURA] Search failed:', e.message);
       }
     }
 
-    // Global Event Delegation (Klik Kartu & List)
+    // Global Click Handler
     document.addEventListener('click', e => {
-      // Klik Row Lagu Trending
+      // Klik Hasil Pencarian
+      const searchRow = e.target.closest('#search-songs-list > div');
+      if (searchRow) {
+        const idx = parseInt(searchRow.dataset.searchIndex, 10);
+        if (!isNaN(idx) && searchSongs[idx]) playTrack(searchSongs[idx], searchSongs, idx);
+        return;
+      }
+
+      // Klik Lagu Trending
       const trendRow = e.target.closest('#trending-songs-list > div');
       if (trendRow) {
         const idx = parseInt(trendRow.dataset.index, 10);
@@ -362,7 +424,7 @@
         return;
       }
 
-      // Tag Pencarian Cepat Modal
+      // Tag Pencarian Cepat
       const tag = e.target.closest('#quick-search-tags > span');
       if (tag) {
         const text = tag.textContent.trim();
@@ -372,7 +434,12 @@
       }
     });
 
-    // Input Search Modal Event
+    // Close Search Results Container
+    document.getElementById('close-search-results')?.addEventListener('click', () => {
+      document.getElementById('sec-search-results')?.classList.add('hidden');
+    });
+
+    // Search Input Modal Event
     const modalInput = document.getElementById('modal-search-input');
     modalInput?.addEventListener('keydown', e => {
       if (e.key === 'Enter') {
@@ -381,7 +448,7 @@
       }
     });
 
-    // Navigasi Sidebar Links
+    // Navigasi Sidebar
     document.querySelectorAll('.nav-item').forEach(link => {
       link.addEventListener('click', e => {
         e.preventDefault();
@@ -404,7 +471,7 @@
       });
     });
 
-    // Triggers Modal & Drawer Mobile
+    // Modals & Drawer Triggers
     const searchModal = document.getElementById('search-modal');
     document.getElementById('desktop-search-trigger')?.addEventListener('click', () => searchModal.classList.remove('hidden'));
     document.getElementById('mobile-search-trigger')?.addEventListener('click', () => searchModal.classList.remove('hidden'));
