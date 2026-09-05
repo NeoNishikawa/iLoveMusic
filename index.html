@@ -638,20 +638,20 @@
 </div>
 <div class="hidden md:flex flex-col items-center gap-space-1 w-2/4 max-w-xl">
 <div class="flex items-center gap-space-6">
-<button class="text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[18px]">shuffle</span></button>
-<button class="text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[22px]">skip_previous</span></button>
-<button class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-on-primary hover:scale-105 transition-transform" id="footer-play-btn"><span class="material-symbols-outlined text-[24px]">play_arrow</span></button>
-<button class="text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[22px]">skip_next</span></button>
-<button class="text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[18px]">repeat</span></button>
+<button type="button" id="footer-shuffle-btn" class="text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[18px]">shuffle</span></button>
+<button type="button" id="footer-previous-btn" class="text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[22px]">skip_previous</span></button>
+<button type="button" class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-on-primary hover:scale-105 transition-transform" id="footer-play-btn"><span class="material-symbols-outlined text-[24px]">play_arrow</span></button>
+<button type="button" id="footer-next-btn" class="text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[22px]">skip_next</span></button>
+<button type="button" id="footer-repeat-btn" class="text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[18px]">repeat</span></button>
 </div>
 <div class="flex items-center gap-space-3 w-full">
 <span class="text-body-sm text-on-surface-variant" id="footer-duration-current">0:00</span>
-<div class="flex-1 h-1 bg-surface-container-high rounded-full overflow-hidden relative cursor-pointer"><div class="absolute left-0 top-0 bottom-0 w-0 bg-primary rounded-full" id="footer-progress"></div></div>
+<div class="flex-1 h-1 bg-surface-container-high rounded-full overflow-hidden relative cursor-pointer" id="footer-progress-bar"><div class="absolute left-0 top-0 bottom-0 w-0 bg-primary rounded-full" id="footer-progress"></div></div>
 <span class="text-body-sm text-on-surface-variant" id="footer-duration-total">3:45</span>
 </div>
 </div>
 <div class="flex items-center gap-space-4 w-1/3 md:w-1/4 justify-end">
-<button class="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center shadow-lg md:hidden" id="footer-play-mobile">
+<button type="button" class="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center shadow-lg md:hidden" id="footer-play-mobile">
 <span class="material-symbols-outlined">play_arrow</span>
 </button>
 <div class="hidden md:flex items-center gap-space-1">
@@ -661,8 +661,8 @@
 <span class="w-1 h-4 bg-secondary rounded-full animate-pulse delay-200"></span>
 </div>
 <span class="material-symbols-outlined text-on-surface-variant text-[20px] hidden md:inline">volume_up</span>
-<div class="w-20 h-1 bg-surface-container-high rounded-full overflow-hidden relative cursor-pointer hidden md:block">
-<div class="absolute left-0 top-0 bottom-0 w-3/4 bg-on-surface rounded-full"></div>
+<div class="w-20 h-1 bg-surface-container-high rounded-full overflow-hidden relative cursor-pointer hidden md:block" id="footer-volume-bar">
+<div class="absolute left-0 top-0 bottom-0 w-3/4 bg-on-surface rounded-full" id="footer-volume-level"></div>
 </div>
 </div>
 </footer>
@@ -688,6 +688,20 @@
     let spotifyDeviceId = null;
     let spotifyPlayerReady = null;
     let currentAudio = null; // untuk preview
+    let currentTrack = null;
+    let isPlaying = false;
+    let repeatMode = false;
+    let shuffleMode = false;
+
+    function updatePlayButton() {
+      const icon = isPlaying ? 'pause' : 'play_arrow';
+      ['footer-play-btn', 'footer-play-mobile'].forEach(id => {
+        const button = document.getElementById(id);
+        const iconEl = button?.querySelector('.material-symbols-outlined');
+        if (iconEl) iconEl.textContent = icon;
+        if (button) button.setAttribute('aria-label', isPlaying ? 'Pause' : 'Play');
+      });
+    }
 
     async function ensureSpotifyToken() {
       const response = await fetch('/api/spotify/token', { credentials: 'include', cache: 'no-store' });
@@ -730,8 +744,12 @@
         });
         
         spotifyPlayer.addListener('player_state_changed', state => {
+          isPlaying = Boolean(state?.isPlaying);
+          updatePlayButton();
+          if (!state) return;
           if (state && state.track_window && state.track_window.current_track) {
             const t = state.track_window.current_track;
+            currentTrack = { id: t.id, title: t.name, artist: t.artists.map(a => a.name).join(', '), image: t.album.images[0]?.url || '', durationMs: t.duration_ms };
             if (window.updateFooter) {
               window.updateFooter({
                 id: t.id,
@@ -743,7 +761,7 @@
               });
             }
             // Update progress
-            if (state.position) {
+            if (typeof state.position === 'number') {
               const sec = Math.floor(state.position / 1000);
               const currentEl = document.getElementById('footer-duration-current');
               if (currentEl) currentEl.textContent = `${Math.floor(sec/60)}:${String(sec%60).padStart(2,'0')}`;
@@ -776,6 +794,57 @@
       await spotifyApi('/me/player', { method: 'PUT', body: JSON.stringify({ device_ids: [spotifyDeviceId], play: true }) });
       await spotifyApi(`/me/player/play?device_id=${encodeURIComponent(spotifyDeviceId)}`, { method: 'PUT', body: JSON.stringify({ uris: [`spotify:track:${trackId}`] }) });
       return player;
+    }
+
+    async function togglePlayback() {
+      if (currentAudio) {
+        if (currentAudio.paused) {
+          await currentAudio.play();
+          isPlaying = true;
+        } else {
+          currentAudio.pause();
+          isPlaying = false;
+        }
+        updatePlayButton();
+        return;
+      }
+      if (!spotifyPlayer) {
+        if (!currentTrack?.id) {
+          showPlaybackMessage('Pilih lagu terlebih dahulu.', 'error');
+          return;
+        }
+        await playSpotifyTrack(currentTrack.id);
+        return;
+      }
+      await spotifyPlayer.togglePlay();
+    }
+
+    async function seekPlayback(event) {
+      const bar = event.currentTarget;
+      const ratio = Math.max(0, Math.min(1, (event.clientX - bar.getBoundingClientRect().left) / bar.clientWidth));
+      if (currentAudio && Number.isFinite(currentAudio.duration)) {
+        currentAudio.currentTime = ratio * currentAudio.duration;
+      } else if (spotifyPlayer && currentTrack?.durationMs) {
+        await spotifyPlayer.seek(Math.round(ratio * currentTrack.durationMs));
+      }
+    }
+
+    async function skipPlayback(direction) {
+      if (!spotifyPlayer) {
+        showPlaybackMessage('Skip tersedia setelah Spotify Web Player aktif.', 'error');
+        return;
+      }
+      if (direction === 'next') await spotifyPlayer.nextTrack();
+      else await spotifyPlayer.previousTrack();
+    }
+
+    async function setVolume(event) {
+      const bar = event.currentTarget;
+      const ratio = Math.max(0, Math.min(1, (event.clientX - bar.getBoundingClientRect().left) / bar.clientWidth));
+      if (!spotifyPlayer) return;
+      await spotifyPlayer.setVolume(ratio);
+      const level = document.getElementById('footer-volume-level');
+      if (level) level.style.width = `${ratio * 100}%`;
     }
 
     window.onSpotifyWebPlaybackSDKReady = () => {
@@ -900,6 +969,9 @@
 
     const playTrack = (track) => {
       if (!track) return;
+      currentTrack = track;
+      isPlaying = false;
+      updatePlayButton();
       // Hentikan preview sebelumnya jika ada
       if (currentAudio) {
         currentAudio.pause();
@@ -916,6 +988,9 @@
           console.warn('Preview play error:', err);
           showPlaybackMessage('Browser menolak pemutaran audio. Coba klik play lagi.', 'error');
         });
+        audio.addEventListener('play', () => { isPlaying = true; updatePlayButton(); });
+        audio.addEventListener('pause', () => { isPlaying = false; updatePlayButton(); });
+        audio.addEventListener('ended', () => { currentAudio = null; isPlaying = false; updatePlayButton(); });
         // Update durasi & progress
         audio.addEventListener('timeupdate', () => {
           const currentEl = document.getElementById('footer-duration-current');
@@ -1026,13 +1101,27 @@
       initHeaderSearch();
       loadHome();
       
-      // Tombol play di footer (toggle play/pause) – bisa diperluas
-      const footerPlayBtn = document.getElementById('footer-play-btn');
-      if (footerPlayBtn) {
-        footerPlayBtn.addEventListener('click', () => {
-          // Bisa diimplementasikan toggle play/pause jika diperlukan
-        });
-      }
+      const footerPlay = () => togglePlayback().catch(error => {
+        console.warn('[AURA] Playback toggle failed:', error.message);
+        showPlaybackMessage(`Kontrol playback gagal: ${error.message}`, 'error');
+      });
+      document.getElementById('footer-play-btn')?.addEventListener('click', footerPlay);
+      document.getElementById('footer-play-mobile')?.addEventListener('click', footerPlay);
+      document.getElementById('footer-previous-btn')?.addEventListener('click', () => skipPlayback('previous').catch(error => showPlaybackMessage(error.message, 'error')));
+      document.getElementById('footer-next-btn')?.addEventListener('click', () => skipPlayback('next').catch(error => showPlaybackMessage(error.message, 'error')));
+      document.getElementById('footer-progress-bar')?.addEventListener('click', event => seekPlayback(event).catch(error => showPlaybackMessage(error.message, 'error')));
+      document.getElementById('footer-volume-bar')?.addEventListener('click', event => setVolume(event).catch(error => showPlaybackMessage(error.message, 'error')));
+      document.getElementById('footer-shuffle-btn')?.addEventListener('click', async event => {
+        shuffleMode = !shuffleMode;
+        event.currentTarget.classList.toggle('text-primary', shuffleMode);
+        if (spotifyPlayer) await spotifyApi(`/me/player/shuffle?state=${shuffleMode}`, { method: 'PUT' });
+      });
+      document.getElementById('footer-repeat-btn')?.addEventListener('click', async event => {
+        repeatMode = !repeatMode;
+        event.currentTarget.classList.toggle('text-primary', repeatMode);
+        if (spotifyPlayer) await spotifyApi(`/me/player/repeat?state=${repeatMode ? 'context' : 'off'}`, { method: 'PUT' });
+      });
+      updatePlayButton();
     });
 
     // Expose fungsi ke global
