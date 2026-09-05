@@ -198,7 +198,7 @@
 <canvas class="fixed inset-0 pointer-events-none z-0 opacity-40" id="particle-canvas"></canvas>
 
 <!-- Hero Section -->
-<section class="relative w-full min-h-[600px] lg:min-h-[819px] flex items-center px-4 md:px-space-8 py-space-8 overflow-hidden rounded-2xl bg-gradient-to-br from-surface-container-lowest via-surface-container to-surface-dim mb-space-8">
+<section class="relative w-full min-h-[600px] lg:min-h-[819px] flex items-center px-4 md:px-space-8 py-space-8 overflow-hidden rounded-2xl bg-gradient-to-br from-surface-container-lowest via-surface-container to-surface-dim mb-space-8" id="hero-section">
 <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary-container/20 via-transparent to-transparent pointer-events-none"></div>
 <div class="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-space-8 w-full items-center">
 <div class="lg:col-span-7 flex flex-col gap-space-6">
@@ -217,16 +217,14 @@
 </button>
 </div>
 <div class="flex flex-wrap items-center gap-space-6 pt-space-4 text-body-sm text-on-surface-variant">
-<div class="flex items-center gap-space-2"><span class="text-headline-sm text-secondary">24-Bit</span> Lossless Audio</div>
+<div class="flex items-center gap-space-2"><span class="text-headline-sm text-secondary">Spotify</span> Search</div>
 <div class="w-1 h-1 rounded-full bg-outline hidden sm:block"></div>
-<div class="flex items-center gap-space-2"><span class="text-headline-sm text-primary">Dolby</span> Atmos Spatial</div>
-<div class="w-1 h-1 rounded-full bg-outline hidden sm:block"></div>
-<div class="flex items-center gap-space-2"><span class="text-headline-sm text-on-surface">192kHz</span> Master Quality</div>
+<div class="flex items-center gap-space-2"><span class="text-headline-sm text-primary">Live</span> Catalog Data</div>
 </div>
 </div>
 <div class="lg:col-span-5 flex items-center justify-center relative">
 <div class="relative w-72 h-72 lg:w-96 lg:h-96 rounded-2xl bg-surface-container-high p-space-4 shadow-[0_20px_50px_rgba(0,0,0,0.8)] border border-outline-variant/30 transition-transform duration-200 ease-out group cursor-pointer" id="tilt-card">
-<div class="absolute inset-0 bg-cover bg-center rounded-xl opacity-80 group-hover:scale-105 transition-transform duration-500" style="background-image: url('Neko-Hyouta.jpg')"></div>
+<div class="absolute inset-0 rounded-xl bg-gradient-to-br from-primary-container/60 via-surface-container-high to-secondary-container/40 group-hover:scale-105 transition-transform duration-500"></div>
 <div class="absolute inset-0 bg-gradient-to-t from-surface-dim via-transparent to-transparent rounded-xl"></div>
 <div class="absolute inset-12 rounded-full border-4 border-dashed border-secondary/40 flex items-center justify-center animate-spin" id="vinyl-disc" style="animation-duration: 12s;">
 <div class="w-24 h-24 rounded-full bg-primary-container border-2 border-secondary flex items-center justify-center shadow-[0_0_30px_rgba(233,195,73,0.5)]">
@@ -235,8 +233,8 @@
 </div>
 <div class="absolute bottom-space-4 left-space-4 right-space-4 flex items-center justify-between z-10">
 <div>
-<div class="text-headline-sm text-on-surface">Hyouta</div>
-<div class="text-body-sm text-secondary">just &amp; The Void</div>
+<div class="text-headline-sm text-on-surface">Discover music</div>
+<div class="text-body-sm text-secondary">Search Spotify catalog</div>
 </div>
 <div class="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center shadow-lg">
 <span class="material-symbols-outlined">play_arrow</span>
@@ -262,7 +260,7 @@
 </section>
 
 <!-- Trending Songs Section -->
-<section class="w-full mb-space-8">
+<section class="w-full mb-space-8" id="trending-section">
 <div class="flex items-center justify-between mb-space-6">
 <div>
 <span class="text-label-sm text-secondary uppercase tracking-wider">Charts</span>
@@ -274,7 +272,7 @@
 </section>
 
 <!-- Popular Artists Section -->
-<section class="w-full mb-space-8">
+<section class="w-full mb-space-8" id="artists-section">
 <div class="flex items-center justify-between mb-space-6">
 <div>
 <span class="text-label-sm text-secondary uppercase tracking-wider">Icons</span>
@@ -286,7 +284,7 @@
 </section>
 
 <!-- Featured Albums Section -->
-<section class="w-full mb-space-8">
+<section class="w-full mb-space-8" id="albums-section">
 <div class="flex items-center justify-between mb-space-6">
 <div>
 <span class="text-label-sm text-secondary uppercase tracking-wider">Releases</span>
@@ -298,7 +296,7 @@
 </section>
 
 <!-- Genre Section -->
-<section class="w-full mb-space-8">
+<section class="w-full mb-space-8" id="genres-section">
 <div class="flex items-center justify-between mb-space-6">
 <div>
 <span class="text-label-sm text-secondary uppercase tracking-wider">Explore</span>
@@ -310,7 +308,7 @@
 
 <!-- Recommended Playlists & Recently Played -->
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-space-8 mb-space-8">
-<section class="w-full">
+<section class="w-full" id="playlists-section">
 <div class="flex items-center justify-between mb-space-6">
 <div>
 <span class="text-label-sm text-secondary uppercase tracking-wider">Curated</span>
@@ -319,7 +317,7 @@
 </div>
 <div class="flex flex-col gap-space-4" id="playlists-grid"></div>
 </section>
-<section class="w-full">
+<section class="w-full" id="recently-played-section">
 <div class="flex items-center justify-between mb-space-6">
 <div>
 <span class="text-label-sm text-secondary uppercase tracking-wider">History</span>
@@ -332,47 +330,7 @@
 </div>
 
 <script>
-      const musicData = {
-        songs: [
-          { id: 1, rank: "01", title: "Subterranean Echoes", artist: "Kavinsky & The Void", plays: "4,291,040", duration: "3:45", trend: "up", image: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=100&auto=format&fit=crop&q=80" },
-          { id: 2, rank: "02", title: "Neon Genesis", artist: "Aethelgard", plays: "3,812,900", duration: "4:12", trend: "up", image: "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=100&auto=format&fit=crop&q=80" },
-          { id: 3, rank: "03", title: "Midnight Solitude", artist: "Celine Vesper", plays: "2,940,112", duration: "3:18", trend: "same", image: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=100&auto=format&fit=crop&q=80" },
-          { id: 4, rank: "04", title: "Quantum Pulse", artist: "Sintax Error", plays: "2,109,450", duration: "5:01", trend: "up", image: "https://images.unsplash.com/photo-1526478806334-5fd488fcaabc?w=100&auto=format&fit=crop&q=80" },
-          { id: 5, rank: "05", title: "Obsidian Dreams", artist: "Nyx Nocturne", plays: "1,980,223", duration: "2:55", trend: "down", image: "https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=100&auto=format&fit=crop&q=80" }
-        ],
-        artists: [
-          { id: 1, name: "Kavinsky", role: "Synthwave Pioneer", image: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80" },
-          { id: 2, name: "Aethelgard", role: "Dark Ambient", image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80" },
-          { id: 3, name: "Celine Vesper", role: "Ethereal Vocalist", image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&auto=format&fit=crop&q=80" },
-          { id: 4, name: "Sintax Error", role: "Cyberpunk Producer", image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&auto=format&fit=crop&q=80" },
-          { id: 5, name: "Nyx Nocturne", role: "Nocturnal Jazz", image: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200&auto=format&fit=crop&q=80" },
-          { id: 6, name: "The Void", role: "Experimental", image: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=200&auto=format&fit=crop&q=80" }
-        ],
-        albums: [
-          { id: 1, title: "Chronicles of Glass", artist: "Kavinsky", tracks: "12 Tracks", image: "https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=300&auto=format&fit=crop&q=80" },
-          { id: 2, title: "Nocturne Protocol", artist: "Aethelgard", tracks: "8 Tracks", image: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=300&auto=format&fit=crop&q=80" },
-          { id: 3, title: "Sub-Zero Lounge", artist: "Celine Vesper", tracks: "10 Tracks", image: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300&auto=format&fit=crop&q=80" },
-          { id: 4, title: "Binary Sunset", artist: "Sintax Error", tracks: "14 Tracks", image: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=300&auto=format&fit=crop&q=80" }
-        ],
-        genres: [
-          { name: "Electronic", count: "14.2k tracks", color: "from-primary-container to-primary" },
-          { name: "Synthwave", count: "8.9k tracks", color: "from-secondary-container to-secondary" },
-          { name: "Dark Ambient", count: "5.4k tracks", color: "from-surface-container-high to-surface-container" },
-          { name: "Lo-Fi Beats", count: "12.1k tracks", color: "from-tertiary-container to-tertiary" },
-          { name: "Hip-Hop", count: "9.8k tracks", color: "from-primary-container to-secondary-container" },
-          { name: "Jazz Noir", count: "3.2k tracks", color: "from-surface-container-high to-primary-container" }
-        ],
-        playlists: [
-          { id: 1, title: "Late Night Subterranean Drive", subtitle: "24 tracks • 1h 42m", image: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=150&auto=format&fit=crop&q=80" },
-          { id: 2, title: "Cyberpunk VIP Lounge", subtitle: "18 tracks • 1h 15m", image: "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=150&auto=format&fit=crop&q=80" },
-          { id: 3, title: "Deep Focus & Binary Rain", subtitle: "32 tracks • 2h 10m", image: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=150&auto=format&fit=crop&q=80" }
-        ],
-        recent: [
-          { id: 1, title: "Subterranean Echoes", artist: "Kavinsky & The Void", time: "2 hours ago", image: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=100&auto=format&fit=crop&q=80" },
-          { id: 2, title: "Neon Genesis", artist: "Aethelgard", time: "Yesterday", image: "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=100&auto=format&fit=crop&q=80" },
-          { id: 3, title: "Midnight Solitude", artist: "Celine Vesper", time: "3 days ago", image: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=100&auto=format&fit=crop&q=80" }
-        ]
-      };
+      const musicData = { songs: [], artists: [], albums: [], genres: [], playlists: [], recent: [] };
 
       // ========== FUNGSI UPDATE FOOTER ==========
       function updateFooter(track) {
@@ -382,11 +340,11 @@
         const imgEl = document.getElementById('footer-track-img');
         const durationEl = document.getElementById('footer-duration-total');
         
-        if (nameEl) nameEl.textContent = track.title || track.name || 'Unknown';
+        if (nameEl) nameEl.textContent = track.title || track.name || 'No track selected';
         if (artistEl) {
           if (track.artist) artistEl.textContent = track.artist;
           else if (track.artists) artistEl.textContent = track.artists.map(a => a.name).join(', ');
-          else artistEl.textContent = 'Unknown Artist';
+          else artistEl.textContent = 'Choose a song to begin';
         }
         if (imgEl) {
           const imgUrl = track.image || (track.album && track.album.image) || (track.images && track.images[0]?.url) || '';
@@ -400,6 +358,7 @@
         // Reset durasi saat ini (opsional)
         const currentEl = document.getElementById('footer-duration-current');
         if (currentEl) currentEl.textContent = '0:00';
+        if (durationEl && !track.durationMs) durationEl.textContent = '0:00';
       }
 
       function renderTrendingSongs() {
@@ -601,6 +560,34 @@
           });
         }
 
+        const sidebarTargets = {
+          home: 'hero-section', discover: 'genres-section', trending: 'trending-section',
+          artists: 'artists-section', albums: 'albums-section', playlists: 'playlists-section',
+          'recently-played': 'recently-played-section'
+        };
+        document.querySelectorAll('[data-path]').forEach(link => {
+          link.addEventListener('click', event => {
+            const path = link.dataset.path;
+            if (path === 'profile') return;
+            event.preventDefault();
+            const target = document.getElementById(sidebarTargets[path]);
+            if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            else window.auraToast?.(`${link.textContent.trim()} belum memiliki data.`);
+            document.querySelectorAll('[data-path]').forEach(item => {
+              item.classList.remove('bg-primary-container', 'text-on-primary-container', 'font-bold');
+              item.classList.add('text-on-surface-variant');
+              item.removeAttribute('aria-current');
+            });
+            document.querySelectorAll(`[data-path="${path}"]`).forEach(item => {
+              item.classList.remove('text-on-surface-variant');
+              item.classList.add('bg-primary-container', 'text-on-primary-container', 'font-bold');
+              item.setAttribute('aria-current', 'page');
+            });
+            drawer?.classList.add('hidden');
+            drawer?.classList.remove('flex');
+          });
+        });
+
         window.addEventListener('keydown', (e) => {
           if (e.key === 'Escape') {
             drawer.classList.add('hidden');
@@ -629,8 +616,8 @@
   <span class="material-symbols-outlined text-primary" style="display: none;">album</span>
 </div>
 <div class="min-w-0">
-<div id="footer-track-name" class="text-body-md font-medium text-on-surface truncate">Subterranean Echoes</div>
-<div id="footer-artist-name" class="text-body-sm text-on-surface-variant truncate">Kavinsky &amp; The Void</div>
+<div id="footer-track-name" class="text-body-md font-medium text-on-surface truncate">No track selected</div>
+<div id="footer-artist-name" class="text-body-sm text-on-surface-variant truncate">Choose a song to begin</div>
 </div>
 <button class="text-on-surface-variant hover:text-primary transition-colors ml-space-2 hidden sm:inline">
 <span class="material-symbols-outlined text-[20px]">favorite</span>
@@ -638,20 +625,20 @@
 </div>
 <div class="hidden md:flex flex-col items-center gap-space-1 w-2/4 max-w-xl">
 <div class="flex items-center gap-space-6">
-<button class="text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[18px]">shuffle</span></button>
-<button class="text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[22px]">skip_previous</span></button>
-<button class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-on-primary hover:scale-105 transition-transform" id="footer-play-btn"><span class="material-symbols-outlined text-[24px]">play_arrow</span></button>
-<button class="text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[22px]">skip_next</span></button>
-<button class="text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[18px]">repeat</span></button>
+<button type="button" id="footer-shuffle-btn" class="text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[18px]">shuffle</span></button>
+<button type="button" id="footer-previous-btn" class="text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[22px]">skip_previous</span></button>
+<button type="button" class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-on-primary hover:scale-105 transition-transform" id="footer-play-btn"><span class="material-symbols-outlined text-[24px]">play_arrow</span></button>
+<button type="button" id="footer-next-btn" class="text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[22px]">skip_next</span></button>
+<button type="button" id="footer-repeat-btn" class="text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[18px]">repeat</span></button>
 </div>
 <div class="flex items-center gap-space-3 w-full">
 <span class="text-body-sm text-on-surface-variant" id="footer-duration-current">0:00</span>
-<div class="flex-1 h-1 bg-surface-container-high rounded-full overflow-hidden relative cursor-pointer"><div class="absolute left-0 top-0 bottom-0 w-0 bg-primary rounded-full" id="footer-progress"></div></div>
-<span class="text-body-sm text-on-surface-variant" id="footer-duration-total">3:45</span>
+<div class="flex-1 h-1 bg-surface-container-high rounded-full overflow-hidden relative cursor-pointer" id="footer-progress-bar"><div class="absolute left-0 top-0 bottom-0 w-0 bg-primary rounded-full" id="footer-progress"></div></div>
+<span class="text-body-sm text-on-surface-variant" id="footer-duration-total">0:00</span>
 </div>
 </div>
 <div class="flex items-center gap-space-4 w-1/3 md:w-1/4 justify-end">
-<button class="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center shadow-lg md:hidden" id="footer-play-mobile">
+<button type="button" class="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center shadow-lg md:hidden" id="footer-play-mobile">
 <span class="material-symbols-outlined">play_arrow</span>
 </button>
 <div class="hidden md:flex items-center gap-space-1">
@@ -661,8 +648,8 @@
 <span class="w-1 h-4 bg-secondary rounded-full animate-pulse delay-200"></span>
 </div>
 <span class="material-symbols-outlined text-on-surface-variant text-[20px] hidden md:inline">volume_up</span>
-<div class="w-20 h-1 bg-surface-container-high rounded-full overflow-hidden relative cursor-pointer hidden md:block">
-<div class="absolute left-0 top-0 bottom-0 w-3/4 bg-on-surface rounded-full"></div>
+<div class="w-20 h-1 bg-surface-container-high rounded-full overflow-hidden relative cursor-pointer hidden md:block" id="footer-volume-bar">
+<div class="absolute left-0 top-0 bottom-0 w-3/4 bg-on-surface rounded-full" id="footer-volume-level"></div>
 </div>
 </div>
 </footer>
@@ -688,6 +675,20 @@
     let spotifyDeviceId = null;
     let spotifyPlayerReady = null;
     let currentAudio = null; // untuk preview
+    let currentTrack = null;
+    let isPlaying = false;
+    let repeatMode = false;
+    let shuffleMode = false;
+
+    function updatePlayButton() {
+      const icon = isPlaying ? 'pause' : 'play_arrow';
+      ['footer-play-btn', 'footer-play-mobile'].forEach(id => {
+        const button = document.getElementById(id);
+        const iconEl = button?.querySelector('.material-symbols-outlined');
+        if (iconEl) iconEl.textContent = icon;
+        if (button) button.setAttribute('aria-label', isPlaying ? 'Pause' : 'Play');
+      });
+    }
 
     async function ensureSpotifyToken() {
       const response = await fetch('/api/spotify/token', { credentials: 'include', cache: 'no-store' });
@@ -730,8 +731,12 @@
         });
         
         spotifyPlayer.addListener('player_state_changed', state => {
+          isPlaying = Boolean(state?.isPlaying);
+          updatePlayButton();
+          if (!state) return;
           if (state && state.track_window && state.track_window.current_track) {
             const t = state.track_window.current_track;
+            currentTrack = { id: t.id, title: t.name, artist: t.artists.map(a => a.name).join(', '), image: t.album.images[0]?.url || '', durationMs: t.duration_ms };
             if (window.updateFooter) {
               window.updateFooter({
                 id: t.id,
@@ -743,7 +748,7 @@
               });
             }
             // Update progress
-            if (state.position) {
+            if (typeof state.position === 'number') {
               const sec = Math.floor(state.position / 1000);
               const currentEl = document.getElementById('footer-duration-current');
               if (currentEl) currentEl.textContent = `${Math.floor(sec/60)}:${String(sec%60).padStart(2,'0')}`;
@@ -760,6 +765,11 @@
         spotifyPlayer.addListener('authentication_error', ({ message }) => reject(new Error(message)));
         spotifyPlayer.addListener('account_error', ({ message }) => reject(new Error(message)));
         spotifyPlayer.connect().then(connected => { if (!connected) reject(new Error('Spotify player could not connect')); });
+      }).catch(error => {
+        spotifyPlayerReady = null;
+        spotifyPlayer = null;
+        spotifyDeviceId = null;
+        throw error;
       });
       return spotifyPlayerReady;
     }
@@ -776,6 +786,57 @@
       await spotifyApi('/me/player', { method: 'PUT', body: JSON.stringify({ device_ids: [spotifyDeviceId], play: true }) });
       await spotifyApi(`/me/player/play?device_id=${encodeURIComponent(spotifyDeviceId)}`, { method: 'PUT', body: JSON.stringify({ uris: [`spotify:track:${trackId}`] }) });
       return player;
+    }
+
+    async function togglePlayback() {
+      if (currentAudio) {
+        if (currentAudio.paused) {
+          await currentAudio.play();
+          isPlaying = true;
+        } else {
+          currentAudio.pause();
+          isPlaying = false;
+        }
+        updatePlayButton();
+        return;
+      }
+      if (!spotifyPlayer) {
+        if (!currentTrack?.id) {
+          showPlaybackMessage('Pilih lagu terlebih dahulu.', 'error');
+          return;
+        }
+        await playSpotifyTrack(currentTrack.id);
+        return;
+      }
+      await spotifyPlayer.togglePlay();
+    }
+
+    async function seekPlayback(event) {
+      const bar = event.currentTarget;
+      const ratio = Math.max(0, Math.min(1, (event.clientX - bar.getBoundingClientRect().left) / bar.clientWidth));
+      if (currentAudio && Number.isFinite(currentAudio.duration)) {
+        currentAudio.currentTime = ratio * currentAudio.duration;
+      } else if (spotifyPlayer && currentTrack?.durationMs) {
+        await spotifyPlayer.seek(Math.round(ratio * currentTrack.durationMs));
+      }
+    }
+
+    async function skipPlayback(direction) {
+      if (!spotifyPlayer) {
+        showPlaybackMessage('Skip tersedia setelah Spotify Web Player aktif.', 'error');
+        return;
+      }
+      if (direction === 'next') await spotifyPlayer.nextTrack();
+      else await spotifyPlayer.previousTrack();
+    }
+
+    async function setVolume(event) {
+      const bar = event.currentTarget;
+      const ratio = Math.max(0, Math.min(1, (event.clientX - bar.getBoundingClientRect().left) / bar.clientWidth));
+      if (!spotifyPlayer) return;
+      await spotifyPlayer.setVolume(ratio);
+      const level = document.getElementById('footer-volume-level');
+      if (level) level.style.width = `${ratio * 100}%`;
     }
 
     window.onSpotifyWebPlaybackSDKReady = () => {
@@ -897,9 +958,13 @@
       clearTimeout(showPlaybackMessage.timer);
       showPlaybackMessage.timer = setTimeout(() => notice.remove(), 6500);
     }
+    window.auraToast = showPlaybackMessage;
 
     const playTrack = (track) => {
       if (!track) return;
+      currentTrack = track;
+      isPlaying = false;
+      updatePlayButton();
       // Hentikan preview sebelumnya jika ada
       if (currentAudio) {
         currentAudio.pause();
@@ -916,6 +981,9 @@
           console.warn('Preview play error:', err);
           showPlaybackMessage('Browser menolak pemutaran audio. Coba klik play lagi.', 'error');
         });
+        audio.addEventListener('play', () => { isPlaying = true; updatePlayButton(); });
+        audio.addEventListener('pause', () => { isPlaying = false; updatePlayButton(); });
+        audio.addEventListener('ended', () => { currentAudio = null; isPlaying = false; updatePlayButton(); });
         // Update durasi & progress
         audio.addEventListener('timeupdate', () => {
           const currentEl = document.getElementById('footer-duration-current');
@@ -1026,13 +1094,27 @@
       initHeaderSearch();
       loadHome();
       
-      // Tombol play di footer (toggle play/pause) – bisa diperluas
-      const footerPlayBtn = document.getElementById('footer-play-btn');
-      if (footerPlayBtn) {
-        footerPlayBtn.addEventListener('click', () => {
-          // Bisa diimplementasikan toggle play/pause jika diperlukan
-        });
-      }
+      const footerPlay = () => togglePlayback().catch(error => {
+        console.warn('[AURA] Playback toggle failed:', error.message);
+        showPlaybackMessage(`Kontrol playback gagal: ${error.message}`, 'error');
+      });
+      document.getElementById('footer-play-btn')?.addEventListener('click', footerPlay);
+      document.getElementById('footer-play-mobile')?.addEventListener('click', footerPlay);
+      document.getElementById('footer-previous-btn')?.addEventListener('click', () => skipPlayback('previous').catch(error => showPlaybackMessage(error.message, 'error')));
+      document.getElementById('footer-next-btn')?.addEventListener('click', () => skipPlayback('next').catch(error => showPlaybackMessage(error.message, 'error')));
+      document.getElementById('footer-progress-bar')?.addEventListener('click', event => seekPlayback(event).catch(error => showPlaybackMessage(error.message, 'error')));
+      document.getElementById('footer-volume-bar')?.addEventListener('click', event => setVolume(event).catch(error => showPlaybackMessage(error.message, 'error')));
+      document.getElementById('footer-shuffle-btn')?.addEventListener('click', async event => {
+        shuffleMode = !shuffleMode;
+        event.currentTarget.classList.toggle('text-primary', shuffleMode);
+        if (spotifyPlayer) await spotifyApi(`/me/player/shuffle?state=${shuffleMode}`, { method: 'PUT' });
+      });
+      document.getElementById('footer-repeat-btn')?.addEventListener('click', async event => {
+        repeatMode = !repeatMode;
+        event.currentTarget.classList.toggle('text-primary', repeatMode);
+        if (spotifyPlayer) await spotifyApi(`/me/player/repeat?state=${repeatMode ? 'context' : 'off'}`, { method: 'PUT' });
+      });
+      updatePlayButton();
     });
 
     // Expose fungsi ke global
