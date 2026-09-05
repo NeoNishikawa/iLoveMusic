@@ -22,6 +22,8 @@ npm start
 
 Tambahkan environment variables berikut pada dashboard hosting. Jangan upload file `.env` dan jangan memasukkan nilai rahasia ke source code.
 
+Jika credential pernah tersimpan di repository atau muncul di URL OAuth, buat **Client Secret baru** di Spotify Developer Dashboard lalu perbarui kedua variable di Railway. Pastikan `SPOTIFY_CLIENT_ID` berisi Client ID dan `SPOTIFY_CLIENT_SECRET` berisi Client Secret; keduanya tidak boleh tertukar. Untuk playback, redirect URI production harus persis `https://ilovemusic-production.up.railway.app/`.
+
 | Variable | Wajib | Keterangan |
 | --- | --- | --- |
 | `SPOTIFY_CLIENT_ID` | Ya | Client ID aplikasi Spotify |
@@ -64,4 +66,4 @@ Server mendengarkan pada `0.0.0.0` dan menghormati `PORT` yang diberikan platfor
 
 ## Keamanan
 
-`SPOTIFY_CLIENT_SECRET` dan access token tidak pernah dikirim ke browser. Access token hanya disimpan di memory proses server. Pastikan environment variables dibuat melalui secret manager atau dashboard hosting, dan jangan menyalin credential ke `index.html`, browser JavaScript, URL, atau `localStorage`.
+`SPOTIFY_CLIENT_SECRET` dan access token tidak pernah dikirim ke browser. Access token hanya disimpan di memory proses server. Pastikan environment variables dibuat melalui secret manager atau dashboard hosting, dan jangan menyalin credential ke `index.html`, browser JavaScript, URL, atau `localStorage`. Jika secret terlanjur committed, anggap compromised dan rotate segera.

@@ -419,7 +419,7 @@
             <div class="flex items-center gap-space-4 md:gap-space-6">
               <span class="text-body-sm text-on-surface-variant hidden md:inline">${song.plays} plays</span>
               <span class="text-body-sm text-on-surface-variant">${song.duration}</span>
-              <button class="w-9 h-9 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center hover:scale-110 transition-transform play-track-btn" data-track-id="${song.id}" data-preview-url="${song.previewUrl || ''}" data-title="${song.title}" data-artist="${song.artist}" data-image="${song.image}">
+              <button type="button" class="w-9 h-9 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center hover:scale-110 transition-transform play-track-btn" data-track-id="${song.id}" data-preview-url="${song.previewUrl || ''}" data-title="${song.title}" data-artist="${song.artist}" data-image="${song.image}">
                 <span class="material-symbols-outlined text-[18px]">play_arrow</span>
               </button>
               <button class="text-on-surface-variant hover:text-primary transition-colors hidden sm:inline">
@@ -766,7 +766,11 @@
 
     async function playSpotifyTrack(trackId) {
       const token = await ensureSpotifyToken();
-      if (!token) { startSpotifyLogin(); return null; }
+      if (!token) {
+        const error = new Error('Spotify login required');
+        error.code = 'SPOTIFY_LOGIN_REQUIRED';
+        throw error;
+      }
       const player = await initSpotifyPlayer();
       if (!spotifyDeviceId) throw new Error('Spotify playback device is not ready');
       await spotifyApi('/me/player', { method: 'PUT', body: JSON.stringify({ device_ids: [spotifyDeviceId], play: true }) });
@@ -870,7 +874,7 @@
               <div class="text-body-sm text-on-surface-variant">${result.label}</div>
             </div>
           </div>
-          <button class="w-9 h-9 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center hover:scale-110 transition-transform play-search-result" data-result-id="${escapeHtml(result.item.id)}" data-preview-url="${escapeHtml(result.item.previewUrl || '')}" data-title="${escapeHtml(result.title)}" data-artist="${escapeHtml(result.item.artist || (result.item.artists ? result.item.artists.map(a => a.name).join(', ') : ''))}" data-image="${escapeHtml(result.image || '')}">
+              <button type="button" class="w-9 h-9 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center hover:scale-110 transition-transform play-search-result" data-result-id="${escapeHtml(result.item.id)}" data-preview-url="${escapeHtml(result.item.previewUrl || '')}" data-title="${escapeHtml(result.title)}" data-artist="${escapeHtml(result.item.artist || (result.item.artists ? result.item.artists.map(a => a.name).join(', ') : ''))}" data-image="${escapeHtml(result.image || '')}">
             <span class="material-symbols-outlined text-[18px]">play_arrow</span>
           </button>
         </div>
@@ -878,6 +882,22 @@
     }
 
     // ========== FUNGSI PEMUTARAN UTAMA ==========
+    function showPlaybackMessage(message, tone = 'info') {
+      let notice = document.getElementById('playback-notice');
+      if (!notice) {
+        notice = document.createElement('div');
+        notice.id = 'playback-notice';
+        notice.setAttribute('role', 'status');
+        notice.className = 'fixed bottom-24 left-1/2 -translate-x-1/2 z-50 max-w-[calc(100vw-2rem)] rounded-xl px-4 py-3 text-sm shadow-2xl border backdrop-blur-xl';
+        document.body.appendChild(notice);
+      }
+      notice.classList.remove('border-primary/40', 'bg-surface-container/95', 'text-on-surface', 'border-error/40', 'text-error');
+      notice.classList.add(tone === 'error' ? 'border-error/40' : 'border-primary/40', 'bg-surface-container/95', tone === 'error' ? 'text-error' : 'text-on-surface');
+      notice.textContent = message;
+      clearTimeout(showPlaybackMessage.timer);
+      showPlaybackMessage.timer = setTimeout(() => notice.remove(), 6500);
+    }
+
     const playTrack = (track) => {
       if (!track) return;
       // Hentikan preview sebelumnya jika ada
@@ -892,7 +912,10 @@
       if (track.previewUrl) {
         const audio = new Audio(track.previewUrl);
         currentAudio = audio;
-        audio.play().catch(err => console.warn('Preview play error:', err));
+        audio.play().catch(err => {
+          console.warn('Preview play error:', err);
+          showPlaybackMessage('Browser menolak pemutaran audio. Coba klik play lagi.', 'error');
+        });
         // Update durasi & progress
         audio.addEventListener('timeupdate', () => {
           const currentEl = document.getElementById('footer-duration-current');
@@ -913,8 +936,9 @@
       if (track.id) {
         playSpotifyTrack(track.id).catch(error => {
           console.warn('[AURA] Spotify playback error:', error.message);
-          // Jika gagal karena belum login, arahkan login
-          ensureSpotifyToken().catch(() => startSpotifyLogin());
+          showPlaybackMessage(error.code === 'SPOTIFY_LOGIN_REQUIRED'
+            ? 'Login Spotify terlebih dahulu melalui ikon profil. Pemutaran penuh memerlukan akun Spotify Premium.'
+            : `Pemutaran gagal: ${error.message}`, 'error');
         });
       }
     };
